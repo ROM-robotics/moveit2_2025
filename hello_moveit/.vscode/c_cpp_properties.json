@@ -1,0 +1,32 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/mr_robot/ros2_ws/install/moveit_task_constructor_visualization/include/**",
+        "/home/mr_robot/ros2_ws/install/moveit_task_constructor_demo/include/**",
+        "/home/mr_robot/ros2_ws/install/moveit_task_constructor_core/include/**",
+        "/home/mr_robot/ros2_ws/install/rviz_marker_tools/include/**",
+        "/home/mr_robot/ros2_ws/install/moveit_task_constructor_msgs/include/**",
+        "/home/mr_robot/devel_ws/install/turtlebot3_gazebo/include/**",
+        "/home/mr_robot/devel_ws/install/turtlebot3_fake_node/include/**",
+        "/home/mr_robot/devel_ws/install/rom_interfaces/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/mr_robot/ros2_ws/src/hello_moveit/include/**",
+        "/home/mr_robot/ros2_ws/src/moveit_task_constructor/core/include/**",
+        "/home/mr_robot/ros2_ws/src/moveit_task_constructor/demo/include/**",
+        "/home/mr_robot/ros2_ws/src/moveit_task_constructor/rviz_marker_tools/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
