@@ -1,2 +1,0 @@
-	
-# mycobot_description #
