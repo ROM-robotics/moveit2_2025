@@ -38,6 +38,13 @@ def generate_launch_description():
         'ur5_controllers.yaml'
     )
 
+    # Define the path to your custom Gazebo world file
+    world_file_path = os.path.join(
+        rom_ur_sim_pkg_dir,
+        'worlds',
+        'arm_on_the_table.sdf'
+    )
+
     # Use xacro to process the URDF file
     # This reads the xacro file and converts it into a standard URDF string
     robot_description_content = xacro.process_file(xacro_file_path).toxml()
@@ -56,8 +63,7 @@ def generate_launch_description():
     )
 
     # Include Gazebo Ignition launch file
-    # This launches the Gazebo simulation environment
-    # 'gz_sim.launch.py' is a common launch file provided by ros_gz_sim
+    # This launches the Gazebo simulation environment with your custom world
     gazebo_launch_include = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -67,7 +73,7 @@ def generate_launch_description():
             ])
         ),
         launch_arguments={
-            'gz_args': '-r empty.sdf', # You can specify your own world file here
+            'gz_args': world_file_path, # Now uses your custom world file
             'on_exit_shutdown': 'true', # Ensures Gazebo shuts down when this launch file exits
             'use_sim_time': LaunchConfiguration('use_sim_time'),
         }.items()
