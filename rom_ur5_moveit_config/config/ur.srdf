@@ -31,7 +31,7 @@
 
     <group name="ur5_manipulator">
         <chain base_link="base_link" tip_link="tool0"/>
-    <group>
+    </group>
 
     <group name="robotiq_gripper">
         <link name="robotiq_85_base_link"/>
