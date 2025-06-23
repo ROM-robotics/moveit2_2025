@@ -11,7 +11,7 @@ from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 import xacro
-
+from moveit_configs_utils import MoveItConfigsBuilder
 
 def generate_launch_description():
     # Declare arguments
@@ -41,7 +41,27 @@ def generate_launch_description():
     # Use xacro to process the URDF file
     # This reads the xacro file and converts it into a standard URDF string
     robot_description_content = xacro.process_file(xacro_file_path).toxml()
-
+    
+    #add moveit config
+    joint_controllers_file = os.path.join(
+        get_package_share_directory('rom_ur_sim'), 'config', 'ur5_controllers.yaml'
+    )
+    #add moveit config
+    moveit_config = (
+        MoveItConfigsBuilder("custom_robot", package_name="rom_ur5_moveit_config")
+        .robot_description(file_path="config/ur.urdf.xacro")
+        .robot_description_semantic(file_path="config/ur.srdf")
+        .trajectory_execution(file_path="config/moveit_controllers.yaml")
+        .robot_description_kinematics(file_path="config/kinematics.yaml")
+        .planning_scene_monitor(
+            publish_robot_description= True, publish_robot_description_semantic=True, publish_planning_scene=True
+        )
+        .planning_pipelines(
+            pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"]
+        )
+        .to_moveit_configs()
+    )
+    
     # Robot State Publisher Node
     # This node reads the robot description and publishes the robot's state to TF
     robot_state_publisher_node = Node(
@@ -49,9 +69,9 @@ def generate_launch_description():
         executable='robot_state_publisher',
         name='robot_state_publisher',
         output='screen',
-        parameters=[{
+        parameters=[moveit_config.robot_description, {
             'use_sim_time': LaunchConfiguration('use_sim_time'),
-            'robot_description': robot_description_content
+            'robot_description': robot_description_content,
         }]
     )
 
@@ -86,6 +106,26 @@ def generate_launch_description():
             '-y', '0.0', # Initial Y position
             '-z', '0.0', # Initial Z position
         ]
+    )
+
+    rviz_config_path = os.path.join(
+        get_package_share_directory("rom_ur5_moveit_config"),
+        "config",
+        "moveit.rviz",
+    )
+
+    rviz_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz2",
+        output="screen",
+        arguments=["-d", rviz_config_path],
+        parameters=[
+            moveit_config.robot_description,
+            moveit_config.robot_description_semantic,
+            moveit_config.planning_pipelines,
+            moveit_config.robot_description_kinematics,
+        ],
     )
 
     # ROS2 Control Node (controller_manager)
@@ -129,6 +169,17 @@ def generate_launch_description():
         output="screen",
     )
 
+    use_sim_time={"use_sim_time": True}
+    config_dict = moveit_config.to_dict()
+    config_dict.update(use_sim_time)
+
+    move_group_node = Node(
+        package="moveit_ros_move_group",
+        executable="move_group",
+        output="screen",
+        parameters=[config_dict],
+        arguments=["--ros-args", "--log-level", "info"],
+    )
     # Register event handler to run spawners after ros2_control_node has started
     # This ensures the controller manager is ready before attempting to spawn controllers.
     delay_after_spawn_entity = RegisterEventHandler(
@@ -150,6 +201,8 @@ def generate_launch_description():
         gazebo_launch_include, # Now uses IncludeLaunchDescription
         robot_state_publisher_node,
         spawn_entity_node,
+        rviz_node,
+        move_group_node,
         delay_after_spawn_entity, # This will launch controllers after the robot is spawned
     ])
 
