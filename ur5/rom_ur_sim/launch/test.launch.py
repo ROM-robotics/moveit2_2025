@@ -28,14 +28,14 @@ def generate_launch_description():
     xacro_file_path = os.path.join(
         rom_ur_sim_pkg_dir,
         'urdf',
-        'ur5_camera.urdf.xacro'
+        'ur5_camera_gripper.urdf.xacro'
     )
 
     # Define the path to your controller configuration file
     controllers_yaml_path = os.path.join(
         rom_ur_sim_pkg_dir,
         'config',
-        'ur5_controllers.yaml'
+        'ur5_controllers_gripper.yaml'
     )
 
     # Use xacro to process the URDF file
@@ -122,6 +122,13 @@ def generate_launch_description():
         output="screen",
     )
 
+    gripper_position_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_position_controller", "-c", "/controller_manager"],
+        output="screen",
+    )
+
     # Register event handler to run spawners after ros2_control_node has started
     # This ensures the controller manager is ready before attempting to spawn controllers.
     delay_after_spawn_entity = RegisterEventHandler(
@@ -131,6 +138,7 @@ def generate_launch_description():
                 ros2_control_node,
                 joint_state_broadcaster_spawner,
                 joint_trajectory_controller_spawner,
+                gripper_position_controller_spawner,
             ],
         )
     )
