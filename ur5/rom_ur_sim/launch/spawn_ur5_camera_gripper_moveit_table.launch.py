@@ -42,7 +42,7 @@ def generate_launch_description():
     world_file_path = os.path.join(
         rom_ur_sim_pkg_dir,
         'worlds',
-        'rom_arm_on_the_table.sdf'
+        'new_world.sdf'
     )
 
     # Use xacro to process the URDF file
@@ -111,7 +111,7 @@ def generate_launch_description():
             '-topic', '/robot_description', # Topic where robot_state_publisher publishes the URDF
             '-x', '0.0', # Initial X position
             '-y', '0.0', # Initial Y position
-            '-z', '0.530', # Initial Z position
+            '-z', '1.02', # Initial Z position
         ]
     )
 
