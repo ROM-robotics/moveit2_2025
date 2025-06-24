@@ -121,6 +121,13 @@ def generate_launch_description():
         "moveit.rviz",
     )
 
+    bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=['/camera/image_raw@sensor_msgs/msg/Image@gz.msgs.Image'], 
+        output='screen'
+    )
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -212,5 +219,6 @@ def generate_launch_description():
         rviz_node,
         move_group_node,
         delay_after_spawn_entity, # This will launch controllers after the robot is spawned
+        bridge,
     ])
 
