@@ -42,7 +42,7 @@ def generate_launch_description():
     world_file_path = os.path.join(
         rom_ur_sim_pkg_dir,
         'worlds',
-        'new_world.sdf'
+        'rom_arm_on_the_table.sdf'
     )
 
     # Use xacro to process the URDF file
@@ -94,7 +94,7 @@ def generate_launch_description():
             ])
         ),
         launch_arguments={
-            'gz_args': world_file_path, # You can specify your own world file here
+            'gz_args': f'-r {world_file_path}', # You can specify your own world file here
             'on_exit_shutdown': 'true', # Ensures Gazebo shuts down when this launch file exits
             'use_sim_time': LaunchConfiguration('use_sim_time'),
         }.items()
@@ -111,7 +111,7 @@ def generate_launch_description():
             '-topic', '/robot_description', # Topic where robot_state_publisher publishes the URDF
             '-x', '0.0', # Initial X position
             '-y', '0.0', # Initial Y position
-            '-z', '1.02', # Initial Z position
+            '-z', '0.0', # Initial Z position
         ]
     )
 
@@ -200,6 +200,7 @@ def generate_launch_description():
             ],
         )
     )
+
 
 
     # Return the LaunchDescription with all defined nodes
