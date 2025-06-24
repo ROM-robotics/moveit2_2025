@@ -163,7 +163,7 @@
       <pose>-0.52 0 0 0 0 1.5708</pose>
     </model>
 
-    <!-- <model name="bolt1">
+    <model name="bolt1">
       <include>
         <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
       </include>
@@ -182,7 +182,7 @@
         <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
       </include>
       <pose>0.11 0.53 1.05 0 -1.5 -1.0</pose>
-    </model> -->
+    </model> 
        
     <light name='sun' type='directional'>
       <pose>0 0 10 0 -0 0</pose>
