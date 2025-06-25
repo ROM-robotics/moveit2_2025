@@ -51,7 +51,7 @@ def plan_and_execute(
 class Controller(Node):
 
     def __init__(self):
-        super().__init__('commander')
+        super().__init__('commander_from_ui')
         self.subscription = self.create_subscription(
             Float64MultiArray,
             '/target_point',

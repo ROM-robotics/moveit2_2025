@@ -16,15 +16,15 @@ bridge = CvBridge()
 class Camera_subscriber(Node):
 
     def __init__(self):
-        super().__init__('camera_subscriber')
+        super().__init__('camera_subscriber_from_yolo')
 
-        self.model = YOLO(os.environ['HOME'] + '/moveit2_obb/src/yolov8_obb/scripts/best.pt')
+        self.model = YOLO(os.environ['HOME'] + '/devel_ws/src/moveit2_2025/yolov8_obb/scripts/best.pt')
 
         self.yolov8_inference = Yolov8Inference()
 
         self.subscription = self.create_subscription(
             Image,
-            '/image_raw',
+            '/camera/image_raw',
             self.camera_callback,
             10)
         self.subscription 

@@ -17,11 +17,11 @@ img = np.zeros([480, 640, 3])
 class Camera_subscriber(Node):
 
     def __init__(self):
-        super().__init__('camera_subscriber')
+        super().__init__('camera_subscriber_from_obb_subscriber')
 
         self.subscription = self.create_subscription(
             Image,
-            'image_raw',
+            '/camera/image_raw',
             self.camera_callback,
             10)
         self.subscription 

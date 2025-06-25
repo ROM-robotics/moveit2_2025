@@ -50,13 +50,13 @@ class GUI(QDialog):
         self.ui.graphicsView.setMouseTracking(True)
 
         rclpy.init(args=None)
-        self.camera_subscriber = Node('image_subscriber')
-        self.sub = self.camera_subscriber.create_subscription(Image, '/image_raw', self.camera_callback, 10)
+        self.camera_subscriber = Node('camera_subscriber_from_qt')
+        self.sub = self.camera_subscriber.create_subscription(Image, '/camera/image_raw', self.camera_callback, 10)
 
-        self.yolo_subscriber = Node('yolo_subscriber')
+        self.yolo_subscriber = Node('yolo_subscriber_from_qt')
         self.sub = self.yolo_subscriber.create_subscription(Yolov8Inference, '/Yolov8_Inference', self.yolo_callback, 10)
 
-        self.pub_node = Node('pub_path')
+        self.pub_node = Node('pub_path_from_qt')
         self.pub = self.pub_node.create_publisher(Float64MultiArray, '/target_point', 10)
 
         self.timer = QTimer(self)
@@ -70,8 +70,8 @@ class GUI(QDialog):
         self.cx = 320
         self.cy = 240
         self.z = 0.7
-        self.init_x = 0.2 # camera positon - robot arm link 0 initial position
-        self.init_y = 0.6
+        self.init_x = -0.5 # camera positon - robot arm link 0 initial position
+        self.init_y = 0.0
 
     def camera_callback(self, data):
         global img

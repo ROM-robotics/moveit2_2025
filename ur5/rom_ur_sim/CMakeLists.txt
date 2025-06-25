@@ -12,6 +12,12 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
+find_package(moveit_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(shape_msgs REQUIRED)
+find_package(moveit_ros_planning_interface REQUIRED)
+find_package(tf2_ros REQUIRED)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -24,7 +30,35 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-install(DIRECTORY config launch urdf meshes worlds rviz
+add_executable(arm_control_from_ui src/arm_control_from_ui.cpp)
+ament_target_dependencies(arm_control_from_ui
+  rclcpp
+  geometry_msgs
+  std_msgs
+  moveit_ros_planning_interface
+  moveit_msgs
+  tf2_ros
+)
+
+install(TARGETS
+  arm_control_from_ui
+  DESTINATION lib/${PROJECT_NAME}
+)
+ament_export_dependencies(
+  rclcpp
+  geometry_msgs
+  std_msgs
+  moveit_ros_planning_interface
+  moveit_msgs
+  tf2_ros
+)
+
+install(PROGRAMS
+  scripts/arm_control_from_UI.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY config launch urdf meshes worlds rviz scripts
   DESTINATION share/${PROJECT_NAME}
 )
 
