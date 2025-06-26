@@ -205,14 +205,26 @@ def generate_launch_description():
                     ],
     )
 
+    # moveit_cpp_node = Node(
+    #     name="moveit_cpp",
+    #     package="rom_ur_sim",
+    #     executable="arm_control_from_ui",
+    #     output="both",
+    #     parameters=[moveit_config.to_dict(),
+    #                 {"use_sim_time": True},
+    #                 ],
+    # )
+    planning_pipelines_param = config_dict.pop("planning_pipelines")
     moveit_cpp_node = Node(
         name="moveit_cpp",
         package="rom_ur_sim",
         executable="arm_control_from_ui",
         output="both",
-        parameters=[moveit_config.to_dict(),
-                    {"use_sim_time": True},
-                    ],
+        parameters=[
+            config_dict, # All other MoveIt configurations
+            {"use_sim_time": True},
+            {"planning_pipelines": planning_pipelines_param}, # Explicitly pass planning_pipelines
+        ],
     )
     # Register event handler to run spawners after ros2_control_node has started
     # This ensures the controller manager is ready before attempting to spawn controllers.

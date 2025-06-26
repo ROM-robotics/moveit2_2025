@@ -12,16 +12,16 @@ windows:
   - Simulation: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; ros2 launch rom_ur_sim spawn_ur5_camera_gripper_moveit_table_yolo.launch
+        - clear; source ~/.bashrc; ros2 launch rom_ur_sim spawn_ur5_camera_gripper_moveit_table_yolo.launch.py
   - Yolo: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; source ~/yolo_env/bin/activate; ros2 launch yolov8_obb yolov8_obb.launch.py
+        - clear; source ~/.bashrc; source ~/yolo_env/env/bin/activate; sleep 3; ros2 launch yolov8_obb yolov8_obb.launch.py
   - Ui: 
-      root: ~/devel_ws/src/moveit_2025/ui/
+      root: ~/
       panes:
-        - clear; source ~/.bashrc; sleep 3; python3 bolt_selector.py
+        - clear; source ~/.bashrc; sleep 4; python3 ~/devel_ws/src/moveit_2025/ui/bolt_selector.py
   - Hand_Gesture: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; ros2 launch ros2_opencv camera_launch.py
+        - clear; source ~/.bashrc; ros2 launch rom_ur_sim test.launch.py

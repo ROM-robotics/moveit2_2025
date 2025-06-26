@@ -30,7 +30,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(arm_control_from_ui src/arm_control_from_ui.cpp)
+add_executable(arm_control_from_ui src/arm_control_from_ui_test.cpp)
 ament_target_dependencies(arm_control_from_ui
   rclcpp
   geometry_msgs
