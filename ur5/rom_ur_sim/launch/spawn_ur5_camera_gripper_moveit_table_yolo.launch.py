@@ -252,6 +252,6 @@ def generate_launch_description():
         move_group_node,
         delay_after_spawn_entity, # This will launch controllers after the robot is spawned
         bridge,
-        moveit_cpp_node,
+        #moveit_cpp_node,
     ])
 
