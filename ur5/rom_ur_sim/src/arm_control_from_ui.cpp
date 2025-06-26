@@ -1,229 +1,229 @@
 #include <memory>
-#include <thread>
 #include <string>
 #include <vector>
-#include <map>
+#include <chrono>
+#include <thread> // For std::this_thread::sleep_for
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
-#include "moveit/move_group_interface/move_group_interface.h"
-#include "moveit/planning_scene_interface/planning_scene_interface.h"
-#include "moveit_msgs/msg/collision_object.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
 
-// Helper function to plan and execute a motion
-// In C++, plan() and execute() are typically called on the MoveGroupInterface object directly.
-// We'll integrate this logic into the class methods.
+#include "moveit/moveit_cpp/moveit_cpp.h"
+#include "moveit/moveit_cpp/planning_component.h"
+#include "moveit/robot_state/robot_state.h"
+#include "moveit_msgs/msg/constraints.hpp"
+#include "moveit_msgs/msg/joint_constraint.hpp"
 
-class Controller : public rclcpp::Node, public std::enable_shared_from_this<Controller>
+using namespace std::chrono_literals;
+
+/**
+ * @brief Controller class for commanding a UR5 manipulator and Robotiq gripper
+ * using MoveIt 2 C++ API (moveit_cpp).
+ *
+ * This class subscribes to a `/target_point` topic and performs a pick-and-place
+ * sequence based on the received coordinates.
+ * 
+ * @author ROM DYNAMICS 
+ * @date 2025-06-26
+ */
+class Controller : public rclcpp::Node
 {
 public:
-  Controller()
-  : Node("commander_from_ui"),
-    tf_buffer_(std::make_shared<tf2_ros::Buffer>(this->get_clock())),
-    tf_listener_(std::make_shared<tf2_ros::TransformListener>(*tf_buffer_)),
-    panda_arm_(std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "ur5_manipulator")),
-    panda_hand_(std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "robotiq_gripper"))
-  {
-    RCLCPP_INFO(this->get_logger(), "Initializing CommanderFromUI Node...");
+    Controller()  : Node("commander_from_ui")
+    {
+        // IMPORTANT: Declare and get parameters for MoveItCpp.
+        // MoveItCpp relies on these parameters to find the robot description
+        // (e.g., URDF and SRDF) and the configured planning pipelines.
+        // These parameters are typically loaded from a MoveIt configuration package.
+        this->declare_parameter<std::string>("robot_description", "");
+        this->declare_parameter<std::string>("planning_pipelines", "");
+        
+        subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+            "/target_point", 10, std::bind(&Controller::listener_callback, this, std::placeholders::_1));
+        RCLCPP_INFO(this->get_logger(), "Subscribed to /target_point topic.");
 
-    // Initialize MoveIt2 interfaces
-    // The MoveGroupInterface constructor handles the necessary ROS2 setup
-    // for interacting with MoveIt services.
+        // Instantiate MoveItCpp instance.
+        // `shared_from_this()` provides a shared_ptr to the current Node instance,
+        // which MoveItCpp needs to access ROS 2 services and parameters.
+        moveit_cpp_ = std::make_shared<moveit_cpp::MoveItCpp>(shared_from_this());
+        RCLCPP_INFO(this->get_logger(), "MoveItCpp instance created successfully.");
+        
 
-    // Get basic information about the robot
-    RCLCPP_INFO(this->get_logger(), "Robot Planning Frame: %s", panda_arm_->getPlanningFrame().c_str());
-    RCLCPP_INFO(this->get_logger(), "End Effector Link: %s", panda_arm_->getEndEffectorLink().c_str());
-    RCLCPP_INFO(this->get_logger(), "Available Planning Groups: ");
-    for (const auto& group_name : panda_arm_->getJointModelGroupNames()) {
-        RCLCPP_INFO(this->get_logger(), "  - %s", group_name.c_str());
+        ur5_arm_ = std::make_shared<moveit_cpp::PlanningComponent>("ur5_manipulator", moveit_cpp_);
+        ur5_hand_ = std::make_shared<moveit_cpp::PlanningComponent>("robotiq_gripper", moveit_cpp_);
+        RCLCPP_INFO(this->get_logger(), "Planning components for 'ur5_manipulator' and 'robotiq_gripper' created.");
+        
+        robot_model_ = moveit_cpp_->getRobotModel();
+        if (!robot_model_) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to get robot model from MoveItCpp.");
+            rclcpp::shutdown(); // Shutdown if we can't get the robot model
+        }
+        
+        pose_goal_.header.frame_id = "base_link";
+
+        // Define heights and initial angle specific to your robot's setup.
+        height_ = 0.18;         // General height for movement
+        pick_height_ = 0.126;   // Height for picking up an object
+        carrying_height_ = 0.3; // Height for carrying an object
+        init_angle_ = -0.3825;  // Initial orientation angle offset
     }
-
-    // Set a planning time (in seconds)
-    panda_arm_->setPlanningTime(10.0);
-    panda_hand_->setPlanningTime(10.0);
-
-    // Initialize the subscription
-    subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
-        "/target_point",
-        10,
-        std::bind(&Controller::listener_callback, this, std::placeholders::_1));
-
-    // Define fixed heights and initial angles
-    height_ = 0.18;
-    pick_height_ = 0.126;
-    carrying_height_ = 0.3;
-    init_angle_ = -0.3825;
-
-    RCLCPP_INFO(this->get_logger(), "CommanderFromUI Node initialized.");
-  }
-
-  ~Controller()
-  {
-    // Destructor for cleanup, if necessary
-  }
 
 private:
-  // ROS2 Objects
-  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
-  std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    /**
+     * @brief Moves the end-effector to a specified Cartesian pose.
+     * @param x X-coordinate of the target position.
+     * @param y Y-coordinate of the target position.
+     * @param z Z-coordinate of the target position.
+     * @param xo X-component of the quaternion orientation.
+     * @param yo Y-component of the quaternion orientation.
+     * @param zo Z-component of the quaternion orientation.
+     * @param wo W-component of the quaternion orientation.
+     */
+    void move_to(double x, double y, double z, double xo, double yo, double zo, double wo)
+    {
+        pose_goal_.pose.position.x = x;
+        pose_goal_.pose.position.y = y;
+        pose_goal_.pose.position.z = z;
+        pose_goal_.pose.orientation.x = xo;
+        pose_goal_.pose.orientation.y = yo;
+        pose_goal_.pose.orientation.z = zo;
+        pose_goal_.pose.orientation.w = wo;
 
-  // MoveIt2 Objects
-  moveit::planning_interface::MoveGroupInterface::SharedPtr panda_arm_;
-  moveit::planning_interface::MoveGroupInterface::SharedPtr panda_hand_;
-  moveit::planning_interface::PlanningSceneInterface planning_scene_interface_;
+        // Set the goal state for the arm planning component using the pose.
+        // "tool0" is assumed to be the name of the end-effector link.
+        ur5_arm_->setGoal(pose_goal_, "tool0");
+        RCLCPP_INFO(this->get_logger(), "Planning arm movement to x: %.2f, y: %.2f, z: %.2f", x, y, z);
 
-  // Node parameters/constants
-  double height_;
-  double pick_height_;
-  double carrying_height_;
-  double init_angle_;
-
-  // Helper to plan and execute
-  bool plan_and_execute(moveit::planning_interface::MoveGroupInterface::SharedPtr move_group, double sleep_time = 0.0)
-  {
-    RCLCPP_INFO(this->get_logger(), "Planning trajectory for group: %s", move_group->getName().c_str());
-    moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-    bool success = (move_group->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
-
-    if (success) {
-      RCLCPP_INFO(this->get_logger(), "Executing plan for group: %s", move_group->getName().c_str());
-      move_group->execute(my_plan);
-    } else {
-      RCLCPP_ERROR(this->get_logger(), "Planning failed for group: %s", move_group->getName().c_str());
+        // Plan the trajectory. `plan()` returns a PlanSolution object.
+        auto plan_solution = ur5_arm_->plan();
+        
+        if (plan_solution)
+        {
+            RCLCPP_INFO(this->get_logger(), "Executing arm plan.");
+            ur5_arm_->execute();
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Arm planning failed.");
+        }
+        // Pause for a moment to allow execution to complete and for visualization to update.
+        std::this_thread::sleep_for(3s);
     }
 
-    if (sleep_time > 0.0) {
-      std::this_thread::sleep_for(std::chrono::duration<double>(sleep_time));
+    void gripper_action(const std::string& action)
+    {
+        ur5_hand_->setStartStateToCurrentState();
+
+        // Create a Constraints message to specify the joint goal.
+        moveit_msgs::msg::Constraints goal_constraints;
+        moveit_msgs::msg::JointConstraint joint_constraint;
+        // The name of the joint to control for the gripper (e.g., "robotiq_85_left_knuckle_joint").
+        joint_constraint.joint_name = "robotiq_85_left_knuckle_joint";
+        joint_constraint.weight = 1.0; // Weight of this constraint (1.0 means it's fully considered).
+
+        if (action == "open")
+        {
+            joint_constraint.position = 0.0000; // Joint position for opening the gripper.
+            joint_constraint.tolerance_above = 0.01; // Tolerance above the target position.
+            joint_constraint.tolerance_below = 0.01; // Tolerance below the target position.
+        }
+        else if (action == "close")
+        {
+            joint_constraint.position = 0.65; // Joint position for closing the gripper.
+            joint_constraint.tolerance_above = 0.01;
+            joint_constraint.tolerance_below = 0.01;
+        }
+        else
+        {
+            RCLCPP_INFO(this->get_logger(), "No such gripper action: %s. Skipping.", action.c_str());
+            return;
+        }
+
+        // Add the joint constraint to the overall goal constraints.
+        goal_constraints.joint_constraints.push_back(joint_constraint);
+
+        // Set the goal for the hand planning component using the joint constraints.
+        //ur5_hand_->setGoal(goal_constraints);
+        ur5_hand_->setGoal(std::vector<moveit_msgs::msg::Constraints>{goal_constraints});
+        RCLCPP_INFO(this->get_logger(), "Planning gripper action: %s", action.c_str());
+
+        auto plan_solution = ur5_hand_->plan();
+
+        if (plan_solution)
+        {
+            RCLCPP_INFO(this->get_logger(), "Executing gripper plan.");
+            ur5_hand_->execute();
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Gripper planning failed.");
+        }
+        std::this_thread::sleep_for(3s);
     }
-    return success;
-  }
+    
+    void listener_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
+    {
+        RCLCPP_INFO(this->get_logger(), "Received target point: [%f, %f, %f]", msg->data[0], msg->data[1], msg->data[2]);
 
-  // Function to move the arm to a specified pose goal
-  bool move_to(double x, double y, double z, double xo, double yo, double zo, double wo)
-  {
-    geometry_msgs::msg::PoseStamped pose_goal;
-    pose_goal.header.frame_id = "base_link"; // Assuming base_link is the robot's base frame
-    pose_goal.header.stamp = this->now();
-    pose_goal.pose.position.x = x;
-    pose_goal.pose.position.y = y;
-    pose_goal.pose.position.z = z;
-    pose_goal.pose.orientation.x = xo;
-    pose_goal.pose.orientation.y = yo;
-    pose_goal.pose.orientation.z = zo;
-    pose_goal.pose.orientation.w = wo;
+        // Sequence of movements for pick and place:
+        // 1. Move to a safe height above the target.
+        move_to(msg->data[0], msg->data[1], height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
 
-    RCLCPP_INFO(this->get_logger(), "Moving arm to pose: x=%.2f, y=%.2f, z=%.2f", x, y, z);
-    panda_arm_->setPoseTarget(pose_goal, "tool0"); // Target the 'tool0' link (end-effector)
+        // 2. Open the gripper.
+        gripper_action("open");
 
-    bool success = plan_and_execute(panda_arm_, 3.0);
-    panda_arm_->clearPoseTargets(); // Clear targets after execution
-    return success;
-  }
+        // 3. Move down to the pick height to grasp the object.
+        move_to(msg->data[0], msg->data[1], pick_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
 
-  // Function for gripper action
-  bool gripper_action(const std::string& action)
-  {
-    panda_hand_->setStartStateToCurrentState(); // Set current state as start state for planning
+        // 4. Close the gripper to grasp the object.
+        gripper_action("close");
 
-    std::map<std::string, double> joint_values;
-    if (action == "open") {
-      joint_values["robotiq_85_left_knuckle_joint"] = 0.0000;
-      RCLCPP_INFO(this->get_logger(), "Opening gripper.");
-    } else if (action == "close") {
-      joint_values["robotiq_85_left_knuckle_joint"] = 0.65;
-      RCLCPP_INFO(this->get_logger(), "Closing gripper.");
-    } else {
-      RCLCPP_WARN(this->get_logger(), "No such gripper action: %s", action.c_str());
-      return false;
-    }
+        // 5. Move up to a carrying height with the object.
+        move_to(msg->data[0], msg->data[1], carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
 
-    // Set joint target for the gripper
-    panda_hand_->setJointValueTarget(joint_values);
-    return plan_and_execute(panda_hand_, 3.0);
-  }
+        // 6. Move to a predefined drop-off location.
+        move_to(0.3, -0.3, carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
 
-  // Callback for the target_point subscription
-  void listener_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
-  {
-    if (msg->data.size() < 3) {
-      RCLCPP_ERROR(this->get_logger(), "Received target_point message with insufficient data (expected at least 3 elements).");
-      return;
-    }
+        // 7. Open the gripper to release the object.
+        gripper_action("open");
 
-    RCLCPP_INFO(this->get_logger(), "Received target point: x=%.2f, y=%.2f, angle_offset=%.2f",
-                msg->data[0], msg->data[1], msg->data[2]);
-
-    // Pick and Place sequence
-    // 1. Move to above pick location
-    if (!move_to(msg->data[0], msg->data[1], height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0)) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to move to above pick location.");
-        return;
-    }
-
-    // 2. Open gripper
-    if (!gripper_action("open")) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to open gripper.");
-        return;
-    }
-
-    // 3. Move to pick location
-    if (!move_to(msg->data[0], msg->data[1], pick_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0)) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to move to pick location.");
-        return;
-    }
-
-    // 4. Close gripper
-    if (!gripper_action("close")) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to close gripper.");
-        return;
+        RCLCPP_INFO(this->get_logger(), "Pick and place sequence completed for current target.");
     }
 
-    // 5. Move to carrying height
-    if (!move_to(msg->data[0], msg->data[1], carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0)) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to move to carrying height.");
-        return;
-    }
+    // Private member variables
+    rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
+    std::shared_ptr<moveit_cpp::MoveItCpp> moveit_cpp_;
+    std::shared_ptr<moveit_cpp::PlanningComponent> ur5_arm_;
+    std::shared_ptr<moveit_cpp::PlanningComponent> ur5_hand_;
+    moveit::core::RobotModelConstPtr robot_model_; 
 
-    // 6. Move to drop off location (fixed for this example)
-    if (!move_to(0.3, -0.3, carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0)) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to move to drop-off location.");
-        return;
-    }
+    geometry_msgs::msg::PoseStamped pose_goal_;
 
-    // 7. Open gripper to release
-    if (!gripper_action("open")) {
-        RCLCPP_ERROR(this->get_logger(), "Failed to open gripper at drop-off.");
-        return;
-    }
-
-    RCLCPP_INFO(this->get_logger(), "Pick and Place sequence completed for current target.");
-  }
+    double height_;
+    double pick_height_;
+    double carrying_height_;
+    double init_angle_;
 };
 
-int main(int argc, char * argv[])
+
+int main(int argc, char* argv[])
 {
-  rclcpp::init(argc, argv);
+    rclcpp::init(argc, argv);
+    
+    auto controller_node = std::make_shared<Controller>();
+    
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(controller_node);
+    
+    std::thread executor_thread([&executor]() { executor.spin(); });
+    
+    rclcpp::Rate loop_rate(2); // Loop at 2 Hz
+    while (rclcpp::ok()) {
+        loop_rate.sleep();
+    }
+    
+    rclcpp::shutdown();
+    executor_thread.join();
 
-  // We use a MultiThreadedExecutor to ensure MoveIt2 background services
-  // and the node's callbacks can run concurrently.
-  rclcpp::executors::MultiThreadedExecutor executor;
-  auto controller_node = std::make_shared<Controller>();
-  executor.add_node(controller_node);
-
-  // Spin the executor in a separate thread
-  std::thread([&]() { executor.spin(); }).detach();
-
-  // Keep the main thread alive to allow the executor thread to run
-  // and to ensure rclcpp::ok() is checked.
-  rclcpp::Rate rate(2); // 2 Hz
-  while (rclcpp::ok()) {
-    rate.sleep();
-  }
-
-  rclcpp::shutdown();
-  return 0;
+    return 0;
 }

@@ -204,6 +204,16 @@ def generate_launch_description():
                     {"use_sim_time": True},
                     ],
     )
+
+    moveit_cpp_node = Node(
+        name="moveit_cpp",
+        package="rom_ur_sim",
+        executable="arm_control_from_ui",
+        output="both",
+        parameters=[moveit_config.to_dict(),
+                    {"use_sim_time": True},
+                    ],
+    )
     # Register event handler to run spawners after ros2_control_node has started
     # This ensures the controller manager is ready before attempting to spawn controllers.
     delay_after_spawn_entity = RegisterEventHandler(
@@ -230,6 +240,6 @@ def generate_launch_description():
         move_group_node,
         delay_after_spawn_entity, # This will launch controllers after the robot is spawned
         bridge,
-        moveit_py_node,
+        moveit_cpp_node,
     ])
 
