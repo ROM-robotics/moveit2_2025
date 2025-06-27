@@ -14,12 +14,14 @@ import xacro
 from moveit_configs_utils import MoveItConfigsBuilder
 
 def generate_launch_description():
+     
     # Declare arguments
     declare_use_sim_time_arg = DeclareLaunchArgument(
         'use_sim_time',
         default_value='true',
         description='Use simulation (Gazebo) clock if true'
     )
+    use_sim_time = LaunchConfiguration('use_sim_time')
 
     # Get the share directory for your rom_ur_sim package
     rom_ur_sim_pkg_dir = get_package_share_directory('rom_ur_sim')
@@ -76,10 +78,11 @@ def generate_launch_description():
         executable='robot_state_publisher',
         name='robot_state_publisher',
         output='screen',
-        parameters=[moveit_config.robot_description, {
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
-            'robot_description': robot_description_content,
-        }]
+        parameters=[
+            {'use_sim_time': use_sim_time},
+            {'robot_description': robot_description_content},
+            #moveit_config.robot_description,
+        ]
     )
 
     # Include Gazebo Ignition launch file
@@ -96,7 +99,7 @@ def generate_launch_description():
         launch_arguments={
             'gz_args': f'-r {world_file_path}', # You can specify your own world file here
             'on_exit_shutdown': 'true', # Ensures Gazebo shuts down when this launch file exits
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'use_sim_time': use_sim_time,
         }.items()
     )
 
@@ -112,7 +115,8 @@ def generate_launch_description():
             '-x', '0.0', # Initial X position
             '-y', '0.0', # Initial Y position
             '-z', '0.0', # Initial Z position
-        ]
+        ],
+        parameters=[{'use_sim_time': use_sim_time}]
     )
 
     rviz_config_path = os.path.join(
@@ -120,12 +124,23 @@ def generate_launch_description():
         "config",
         "moveit.rviz",
     )
+    # Bridge clock
+    clock_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='clock_bridge',
+        arguments=[
+            '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+        ],
+        output='screen'
+    )
 
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=['/camera/image_raw@sensor_msgs/msg/Image@gz.msgs.Image'], 
-        output='screen'
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time}]
     )
 
     rviz_node = Node(
@@ -139,6 +154,7 @@ def generate_launch_description():
             moveit_config.robot_description_semantic,
             moveit_config.planning_pipelines,
             moveit_config.robot_description_kinematics,
+            {'use_sim_time': use_sim_time},
         ],
     )
 
@@ -150,6 +166,7 @@ def generate_launch_description():
         executable="ros2_control_node",
         parameters=[
             {'robot_description': robot_description_content},
+            {'use_sim_time': use_sim_time},
             controllers_yaml_path
         ],
         output="screen",
@@ -163,6 +180,7 @@ def generate_launch_description():
         executable="spawner",
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
         output="screen",
+        parameters=[{'use_sim_time': use_sim_time}],
     )
 
     # Joint Trajectory Controller Spawner
@@ -174,6 +192,7 @@ def generate_launch_description():
         executable="spawner",
         arguments=["joint_trajectory_controller", "-c", "/controller_manager"],
         output="screen",
+        parameters=[{'use_sim_time': use_sim_time}],
     )
 
     gripper_position_controller_spawner = Node(
@@ -181,6 +200,7 @@ def generate_launch_description():
         executable="spawner",
         arguments=["gripper_position_controller", "-c", "/controller_manager"],
         output="screen",
+        parameters=[{'use_sim_time': use_sim_time}],
     )
 
     use_sim_time={"use_sim_time": True}
@@ -220,6 +240,7 @@ def generate_launch_description():
     return LaunchDescription([
         declare_use_sim_time_arg,
         gazebo_launch_include, # Now uses IncludeLaunchDescription
+        clock_bridge,
         robot_state_publisher_node,
         spawn_entity_node,
         rviz_node,
