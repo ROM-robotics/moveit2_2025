@@ -31,21 +31,21 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(arm_control_from_ui src/arm_control_from_ui.cpp)
-ament_target_dependencies(arm_control_from_ui
-  rclcpp
-  geometry_msgs
-  std_msgs
-  moveit_ros_planning_interface
-  moveit_msgs
-  tf2_ros
-)
+#add_executable(arm_control_from_ui src/arm_control_from_ui.cpp)
+# ament_target_dependencies(arm_control_from_ui
+#   rclcpp
+#   geometry_msgs
+#   std_msgs
+#   moveit_ros_planning_interface
+#   moveit_msgs
+#   tf2_ros
+# )
 
-add_executable(mtc_task_node src/mtc_task_node.cpp)
-ament_target_dependencies(mtc_task_node rclcpp moveit_task_constructor_core moveit_ros_planning_interface)
+#add_executable(mtc_task_node src/mtc_task_node.cpp)
+#ament_target_dependencies(mtc_task_node rclcpp moveit_task_constructor_core moveit_ros_planning_interface)
 
 install(TARGETS
-  arm_control_from_ui mtc_task_node
+  #arm_control_from_ui #mtc_task_node
   DESTINATION lib/${PROJECT_NAME}
 )
 ament_export_dependencies(
