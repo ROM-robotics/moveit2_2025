@@ -1,3 +1,33 @@
+# Copyright (c) 2021 Stogl Robotics Consulting UG (haftungsbeschränkt)
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the {copyright_holder} nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Author: Denis Stogl
+
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -149,14 +179,6 @@ def launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
-    camera_bridge = Node(
-        package='ros_gz_bridge',
-        executable='parameter_bridge',
-        arguments=['/camera/image_raw@sensor_msgs/msg/Image@gz.msgs.Image'], 
-        output='screen',
-        parameters=[{'use_sim_time': True}]
-    )
-
     nodes_to_start = [
         robot_state_publisher_node,
         joint_state_broadcaster_spawner,
@@ -166,7 +188,6 @@ def launch_setup(context, *args, **kwargs):
         gz_spawn_entity,
         gz_launch_description,
         gz_sim_bridge,
-        camera_bridge,
     ]
 
     return nodes_to_start
@@ -193,7 +214,7 @@ def generate_launch_description():
                 "ur20",
                 "ur30",
             ],
-            default_value="ur5",
+            default_value="ur5e",
         )
     )
     declared_arguments.append(
@@ -222,7 +243,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "controllers_file",
             default_value=PathJoinSubstitution(
-                [FindPackageShare("rom_ur_sim"), "config", "ur5_controllers.yaml"]
+                [FindPackageShare("ur_simulation_gz"), "config", "ur_controllers.yaml"]
             ),
             description="Absolute path to YAML file with the controllers configuration.",
         )
@@ -254,7 +275,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "description_file",
             default_value=PathJoinSubstitution(
-                [FindPackageShare("rom_ur_sim"), "urdf", "ur5_camera.urdf.xacro"]
+                [FindPackageShare("ur_simulation_gz"), "urdf", "ur_gz.urdf.xacro"]
             ),
             description="URDF/XACRO description file (absolute path) with the robot.",
         )
@@ -266,7 +287,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "rviz_config_file",
             default_value=PathJoinSubstitution(
-                [FindPackageShare("rom_ur_sim"), "rviz", "view_ur5_camera.rviz"]
+                [FindPackageShare("ur_description"), "rviz", "view_robot.rviz"]
             ),
             description="Rviz config file (absolute path) to use when launching rviz.",
         )

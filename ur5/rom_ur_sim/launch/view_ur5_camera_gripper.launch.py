@@ -23,6 +23,7 @@ def generate_launch_description():
                 "ur10e",
                 "ur12e",
                 "ur16e",
+                "ur15",
                 "ur20",
                 "ur30",
             ],
@@ -111,14 +112,12 @@ def generate_launch_description():
             tf_prefix,
         ]
     )
-
-
     robot_description = {
         "robot_description": ParameterValue(value=robot_description_content, value_type=str)
     }
 
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare(description_package), "rviz", "config_ur5_robotiq.rviz"]
+        [FindPackageShare(description_package), "rviz", "view_ur5_camera.rviz"]
     )
 
     joint_state_publisher_node = Node(

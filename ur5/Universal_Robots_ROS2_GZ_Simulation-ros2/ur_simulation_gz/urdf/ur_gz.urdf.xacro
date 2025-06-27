@@ -1,17 +1,17 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur">
-   <!-- robot name parameter -->
-   <xacro:arg name="name" default="ur"/>
-   <!-- import main macro -->
-   <xacro:include filename="$(find rom_ur_sim)/urdf/camera_ign.xacro"/>
-   <xacro:include filename="$(find rom_ur_sim)/urdf/ur5_macro.xacro"/>
-   <xacro:include filename="$(find ur_simulation_gz)/urdf/ur_gz.ros2_control.xacro" />
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+  <!-- robot name parameter -->
+  <xacro:arg name="name" default="ur"/>
+  <!-- import main macro -->
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
 
-   <!-- possible 'ur_type' values: ur3, ur3e, ur5, ur5e, ur7e, ur10, ur10e, ur12e, ur16e, ur15, ur20, ur30 -->
-   <!-- the default value should raise an error in case this was called without defining the type -->
-   <xacro:arg name="ur_type" default="ur5"/>
+  <xacro:include filename="$(find ur_simulation_gz)/urdf/ur_gz.ros2_control.xacro" />
 
-   <!-- parameters -->
+  <!-- possible 'ur_type' values: ur3, ur3e, ur5, ur5e, ur7e, ur10, ur10e, ur12e, ur16e, ur15, ur20, ur30 -->
+  <!-- the default value should raise an error in case this was called without defining the type -->
+  <xacro:arg name="ur_type" default="ur5x"/>
+
+  <!-- parameters -->
   <xacro:arg name="tf_prefix" default="" />
   <xacro:arg name="joint_limit_params" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
   <xacro:arg name="kinematics_params" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
@@ -22,7 +22,7 @@
   <xacro:arg name="safety_pos_margin" default="0.15"/>
   <xacro:arg name="safety_k_position" default="20"/>
 
-  <xacro:arg name="simulation_controllers" default="$(find rom_ur_sim)/config/ur5_controllers_gripper.yaml" />
+  <xacro:arg name="simulation_controllers" default="" />
   <xacro:arg name="ros_namespace" default="" />
 
   <!-- create link fixed to the "world" -->
@@ -86,15 +86,4 @@
     tf_prefix="$(arg tf_prefix)"
     transmission_hw_interface="$(arg transmission_hw_interface)"
   />
-
-  <xacro:arg name="use_fake_hardware" default="true" />
-  <xacro:arg name="com_port" default="/dev/ttyUSB0" />
-  <xacro:arg name="sim_gazebo" default="false" />
-  
-  <!-- Import macros -->
-  <xacro:include filename="$(find rom_ur_sim)/urdf/robotiq_gripper_macro.xacro" />
-
-  <xacro:robotiq_gripper name="RobotiqGripperHardwareInterface" prefix="" parent="tool0" use_fake_hardware="$(arg use_fake_hardware)" com_port="$(arg com_port)" sim_gazebo="$(arg sim_gazebo)">
-    <origin xyz="0 0 0" rpy="0 0 0" />
-  </xacro:robotiq_gripper>
 </robot>
