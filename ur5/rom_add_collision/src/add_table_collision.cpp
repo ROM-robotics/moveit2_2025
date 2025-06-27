@@ -110,7 +110,7 @@ TABLE POSE IN WORLD SDF
 <model name="table">
       <static>true</static>
       <include>
-        <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/table/</uri>
+        <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/table/</uri>
       </include>
       <pose>0.29 0 0 0 0 1.5708</pose>
     </model>

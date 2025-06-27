@@ -19,7 +19,7 @@
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/meshes/bolt.stl</uri>
+            <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/meshes/bolt.stl</uri>
           </mesh>
         </geometry>
         <surface>
@@ -39,7 +39,7 @@
         <geometry>
           <mesh>
             <scale>1 1 1</scale>
-            <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/meshes/bolt.dae</uri>
+            <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/meshes/bolt.dae</uri>
           </mesh>
         </geometry>
       </visual>

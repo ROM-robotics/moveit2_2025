@@ -154,35 +154,35 @@
     <model name="table1">
       <static>true</static>
       <include>
-        <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/table/</uri>
+        <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/table/</uri>
       </include>
       <pose>0.29 0 0 0 0 1.5708</pose>
     </model>
     <model name="table2">
       <static>true</static>
       <include>
-        <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/table/</uri>
+        <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/table/</uri>
       </include>
       <pose>-0.52 0 0 0 0 1.5708</pose>
     </model>
 
     <model name="bolt1">
       <include>
-        <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
+        <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
       </include>
       <pose>0.5 0.35 1.05 0 1.5 0</pose>
     </model>
 
     <model name="bolt2">
       <include>
-        <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
+        <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
       </include>
       <pose>0.25 0.63 1.05 0 -1.5 -2.82</pose>
     </model>
 
     <model name="bolt3">
       <include>
-        <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
+        <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/bolt/</uri>
       </include>
       <pose>0.11 0.53 1.05 0 -1.5 -1.0</pose>
     </model> 
