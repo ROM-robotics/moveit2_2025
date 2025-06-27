@@ -194,6 +194,38 @@ def generate_launch_description():
         parameters=[config_dict],
         arguments=["--ros-args", "--log-level", "info"],
     )
+
+    moveit_py_node = Node(
+        name="moveit_py",
+        package="rom_ur_sim",
+        executable="arm_control_from_UI.py",
+        output="both",
+        parameters=[moveit_config.to_dict(),
+                    {"use_sim_time": True},
+                    ],
+    )
+
+    # moveit_cpp_node = Node(
+    #     name="moveit_cpp",
+    #     package="rom_ur_sim",
+    #     executable="arm_control_from_ui",
+    #     output="both",
+    #     parameters=[moveit_config.to_dict(),
+    #                 {"use_sim_time": True},
+    #                 ],
+    # )
+    planning_pipelines_param = config_dict.pop("planning_pipelines")
+    moveit_cpp_node = Node(
+        name="moveit_cpp",
+        package="rom_ur_sim",
+        executable="arm_control_from_ui",
+        output="both",
+        parameters=[
+            config_dict, # All other MoveIt configurations
+            {"use_sim_time": True},
+            {"planning_pipelines": planning_pipelines_param}, # Explicitly pass planning_pipelines
+        ],
+    )
     # 1. Register event handler to run spawners after ros2_control_node has started
     # This ensures the controller manager is ready before attempting to spawn controllers.
     delay_after_spawn_entity = RegisterEventHandler(
@@ -216,6 +248,18 @@ def generate_launch_description():
             ],
         )
     )
+    # 3. Launch moveit_cpp_node AFTER move_group_node process starts.
+    # We use OnProcessStart because move_group is a long-running server.
+    # The C++ node's internal `initializeMoveIt` will likely have `wait_for_service` calls
+    # for MoveIt services and actions, making this reliable.
+    delay_moveit_cpp_node = RegisterEventHandler(
+        event_handler=OnProcessStart( # Changed from OnProcessExit to OnProcessStart
+            target_action=move_group_node,
+            on_start=[
+                moveit_cpp_node,
+            ],
+        )
+    )
     # Return the LaunchDescription with all defined nodes
     return LaunchDescription([
         declare_use_sim_time_arg,
@@ -226,5 +270,6 @@ def generate_launch_description():
         bridge,
         delay_after_spawn_entity, # This will launch controllers after the robot is spawned
         delay_move_group_node,
+        #delay_moveit_cpp_node,
     ])
 

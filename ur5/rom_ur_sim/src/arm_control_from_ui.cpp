@@ -16,6 +16,12 @@
 
 using namespace std::chrono_literals;
 
+// Define a macro for pink (magenta) INFO messages
+// \033[1;35m sets bold magenta foreground color
+// \033[0m resets all attributes to default
+/* #define RCLCPP_INFO_PINK(LOGGER, FORMAT, ...) \
+   RCLCPP_INFO(LOGGER, "\033[1;35m" FORMAT "\033[0m", ##__VA_ARGS__) */
+
 /**
  * @brief Controller class for commanding a UR5 manipulator and Robotiq gripper
  * using MoveIt 2 C++ API (moveit_cpp).
@@ -40,7 +46,9 @@ public:
         
         subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
             "/target_point", 10, std::bind(&Controller::listener_callback, this, std::placeholders::_1));
-        RCLCPP_INFO(this->get_logger(), "Subscribed to /target_point topic.");
+        
+        // Example of pink info message
+        RCLCPP_INFO(this->get_logger(), "\033[1;35m Subscribed to /target_point topic.\033[0m");
 
         pose_goal_.header.frame_id = "base_link";
 
@@ -59,10 +67,12 @@ public:
         // which MoveItCpp needs to access ROS 2 services and parameters.
         // This is called AFTER the Controller object is managed by a shared_ptr.
         moveit_cpp_ = std::make_shared<moveit_cpp::MoveItCpp>(shared_from_this());
-        RCLCPP_INFO(this->get_logger(), "MoveItCpp instance created successfully.");
+        // Example of pink info message
+        RCLCPP_INFO(this->get_logger(), "\033[1;35m MoveItCpp instance created successfully.\033[0m");
         
         ur5_arm_ = std::make_shared<moveit_cpp::PlanningComponent>("ur5_manipulator", moveit_cpp_);
         ur5_hand_ = std::make_shared<moveit_cpp::PlanningComponent>("robotiq_gripper", moveit_cpp_);
+        // Example of pink info message
         RCLCPP_INFO(this->get_logger(), "Planning components for 'ur5_manipulator' and 'robotiq_gripper' created.");
         
         robot_model_ = moveit_cpp_->getRobotModel();
@@ -176,6 +186,7 @@ private:
     
     void listener_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
     {
+        // Example of pink info message
         RCLCPP_INFO(this->get_logger(), "Received target point: [%f, %f, %f]", msg->data[0], msg->data[1], msg->data[2]);
 
         // Sequence of movements for pick and place:
@@ -200,6 +211,7 @@ private:
         // 7. Open the gripper to release the object.
         gripper_action("open");
 
+        // Example of pink info message
         RCLCPP_INFO(this->get_logger(), "Pick and place sequence completed for current target.");
     }
 

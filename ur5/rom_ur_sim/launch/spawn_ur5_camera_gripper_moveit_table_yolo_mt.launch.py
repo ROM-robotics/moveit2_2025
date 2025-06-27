@@ -216,6 +216,18 @@ def generate_launch_description():
             ],
         )
     )
+    mtc_node = Node(
+    package="your_package_name",
+    executable="mtc_task_node",
+    name="mtc_task_node",
+    output="screen",
+    parameters=[
+        moveit_config.robot_description,
+        moveit_config.robot_description_semantic,
+        moveit_config.robot_description_kinematics,
+        {"use_sim_time": LaunchConfiguration("use_sim_time")}
+    ]
+)
     # Return the LaunchDescription with all defined nodes
     return LaunchDescription([
         declare_use_sim_time_arg,
@@ -226,5 +238,6 @@ def generate_launch_description():
         bridge,
         delay_after_spawn_entity, # This will launch controllers after the robot is spawned
         delay_move_group_node,
+        mtc_node
     ])
 
