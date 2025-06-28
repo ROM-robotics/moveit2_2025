@@ -3,7 +3,7 @@
    <!-- robot name parameter -->
    <xacro:arg name="name" default="ur"/>
    <!-- import main macro -->
-   <xacro:include filename="$(find rom_ur_sim)/urdf/camera_ign.xacro"/>
+   <!-- <xacro:include filename="$(find rom_ur_sim)/urdf/camera_ign.xacro"/> -->
    <xacro:include filename="$(find rom_ur_sim)/urdf/ur5_macro.xacro"/>
    <xacro:include filename="$(find ur_simulation_gz)/urdf/ur_gz.ros2_control.xacro" />
 
@@ -66,7 +66,7 @@
     safety_k_position="$(arg safety_k_position)"
     force_abs_paths="true"
     >
-    <origin xyz="0 0 0" rpy="0 0 0" />          <!-- position robot in the world -->
+    <origin xyz="0 0 1.02" rpy="0 0 0" />          <!-- position robot in the world -->
   </xacro:ur_robot>
 
   <gazebo reference="world">

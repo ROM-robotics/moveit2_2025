@@ -150,6 +150,11 @@
       <name>table2</name>
       <pose>0.794 0 0 0 -0 1.5708</pose>
     </include> -->
+    <include>
+      <uri>file:///root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/camera/camera_model.sdf</uri>
+      <name>camera</name>
+      <pose>1.0 0.0 1.5 0 0 0</pose>
+    </include>
 
     <model name="table1">
       <static>true</static>
