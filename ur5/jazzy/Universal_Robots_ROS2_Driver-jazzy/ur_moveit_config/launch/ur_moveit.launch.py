@@ -82,6 +82,7 @@ def declare_arguments():
                     "ur20",
                     "ur30",
                 ],
+                default_value='ur5',
             ),
             DeclareLaunchArgument(
                 "warehouse_sqlite_path",

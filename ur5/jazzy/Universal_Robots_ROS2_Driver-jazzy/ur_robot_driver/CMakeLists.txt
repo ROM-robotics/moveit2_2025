@@ -181,7 +181,7 @@ install(DIRECTORY config launch urdf
 ament_package()
 
 if(BUILD_TESTING)
-  find_package(ur_controllers REQUIRED)
+  #find_package(ur_controllers REQUIRED)
   find_package(ur_description REQUIRED)
   find_package(ur_msgs REQUIRED)
   find_package(launch_testing_ament_cmake)
