@@ -28,6 +28,7 @@ joint_trajectory_controller:
     state_interfaces:
       - position
       - velocity
+    allow_nonzero_velocity_at_trajectory_end: true
 gripper_position_controller:
   ros__parameters:
     joint: robotiq_85_left_knuckle_joint

@@ -49,7 +49,22 @@
             <near>0.05</near>
             <far>10.0</far>
           </clip>
+          <topic>/ur5/camera/image_raw</topic> 
         </camera>
+        <!-- This plugin is crucial for bridging Gazebo sensor data to ROS 2 topics. -->
+        <!-- The <ros> block within the plugin can specify the ROS 2 topic name and frame_id. -->
+        <plugin filename="libgz_gazebo_camera_plugin.so" name="gz::gazebo::systems::Camera">
+          <ros>
+            <!-- ROS 2 namespace for the camera topics -->
+            <namespace>ur5/camera</namespace> 
+            <!-- ROS 2 topic name for the image. If not specified, defaults to 'image_raw'. -->
+            <ros_topic>image_raw</ros_topic> 
+            <!-- ROS 2 topic name for the camera info. If not specified, defaults to 'camera_info'. -->
+            <ros_topic_camera_info>camera_info</ros_topic_camera_info>
+            <!-- Frame ID for the camera. This should match a TF frame in your robot. -->
+            <frame_id>camera_link</frame_id> 
+          </ros>
+        </plugin>
       </sensor>
     </link>
   </model>

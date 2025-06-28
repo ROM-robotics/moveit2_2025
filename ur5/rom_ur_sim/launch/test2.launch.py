@@ -1,5 +1,4 @@
 import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -37,7 +36,6 @@ def launch_setup(context, *args, **kwargs):
     rviz_config_file = LaunchConfiguration("rviz_config_file")
     gazebo_gui = LaunchConfiguration("gazebo_gui")
     world_file = LaunchConfiguration("world_file")
-    use_sim_time = LaunchConfiguration("use_sim_time") # Add this line to initialize use_sim_time
 
     robot_description_content = Command(
         [
@@ -90,7 +88,7 @@ def launch_setup(context, *args, **kwargs):
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="both",
-        parameters=[{"use_sim_time": use_sim_time}, robot_description], # Use use_sim_time variable
+        parameters=[{"use_sim_time": True}, robot_description],
     )
 
     # GZ nodes
@@ -103,8 +101,7 @@ def launch_setup(context, *args, **kwargs):
                 gazebo_gui,
                 if_value=[" -r -v 4 ", world_file],
                 else_value=[" -s -r -v 4 ", world_file],
-            ),
-            "use_sim_time": use_sim_time, # Pass use_sim_time to gz_sim.launch.py
+            )
         }.items(),
     )
 
@@ -135,12 +132,12 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.planning_pipelines,
             moveit_config.robot_description_kinematics,
             # Pass use_sim_time to RViz2 for proper time synchronization
-            {'use_sim_time': use_sim_time}, # Use use_sim_time variable
+            {'use_sim_time': LaunchConfiguration('use_sim_time')},
         ],
     )
 
     controllers_yaml_path = os.path.join(
-        get_package_share_directory('rom_ur_sim'),
+        'rom_ur_sim',
         'config',
         'ur5_controllers_gripper.yaml'
     )
@@ -148,9 +145,8 @@ def launch_setup(context, *args, **kwargs):
         package="controller_manager",
         executable="ros2_control_node",
         parameters=[
-            #{'robot_description': robot_description_content}, # Robot URDF content
-            controllers_yaml_path, # Path to your robot's controller configurations
-            {'use_sim_time': use_sim_time}, # Pass use_sim_time to ros2_control_node
+            {'robot_description': robot_description_content}, # Robot URDF content
+            controllers_yaml_path # Path to your robot's controller configurations
         ],
         output="screen",
     )
@@ -160,21 +156,18 @@ def launch_setup(context, *args, **kwargs):
         executable="spawner",
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
         output="screen",
-        parameters=[{'use_sim_time': use_sim_time}], # Pass use_sim_time to spawner
     )
     joint_trajectory_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["joint_trajectory_controller", "-c", "/controller_manager"],
         output="screen",
-        parameters=[{'use_sim_time': use_sim_time}], # Pass use_sim_time to spawner
     )
     gripper_position_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
         arguments=["gripper_position_controller", "-c", "/controller_manager"],
         output="screen",
-        parameters=[{'use_sim_time': use_sim_time}], # Pass use_sim_time to spawner
     )
 
     # Delay rviz start after `joint_state_broadcaster`
@@ -186,6 +179,20 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(launch_rviz),
     )
 
+    # # There may be other controllers of the joints, but this is the initially-started one
+    # initial_joint_controller_spawner_started = Node(
+    #     package="controller_manager",
+    #     executable="spawner",
+    #     arguments=[initial_joint_controller, "-c", "/controller_manager"],
+    #     condition=IfCondition(activate_joint_controller),
+    # )
+    # initial_joint_controller_spawner_stopped = Node(
+    #     package="controller_manager",
+    #     executable="spawner",
+    #     arguments=[initial_joint_controller, "-c", "/controller_manager", "--stopped"],
+    #     condition=UnlessCondition(activate_joint_controller),
+    # )
+    
     # Make the /clock topic available in ROS
     gz_sim_bridge = Node(
         package="ros_gz_bridge",
@@ -194,22 +201,21 @@ def launch_setup(context, *args, **kwargs):
             "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
         ],
         output="screen",
-        parameters=[{'use_sim_time': use_sim_time}], # Pass use_sim_time to bridge
     )
 
     camera_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
-        arguments=['/world/arm_and_table/model/camera/link/camera_link/sensor/camera_sensor/image@sensor_msgs/msg/Image@gz.msgs.Image'], 
+        arguments=['/camera/image_raw@sensor_msgs/msg/Image@gz.msgs.Image'], 
         output='screen',
-        parameters=[{'use_sim_time': use_sim_time}] # Pass use_sim_time to bridge
+        parameters=[{'use_sim_time': True}]
     )
 
     # MoveIt 2 MoveGroup Node
     # The 'move_group' node is the central component of MoveIt 2. It integrates
     # planning, execution, and monitoring of robot movements.
     # It uses the MoveItConfigsBuilder output for its parameters.
-    use_sim_time_param = {"use_sim_time": use_sim_time} # Use use_sim_time variable
+    use_sim_time_param = {"use_sim_time": LaunchConfiguration('use_sim_time')}
     config_dict = moveit_config.to_dict()
     config_dict.update(use_sim_time_param) # Ensure use_sim_time is passed to move_group
     move_group_node = Node(
@@ -219,6 +225,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[config_dict],
         arguments=["--ros-args", "--log-level", "info"],
     )
+
     # Register event handler to run spawners after ros2_control_node has started
     # This ensures that the controller manager is fully initialized and ready
     # before attempting to load and start controllers.
@@ -226,7 +233,7 @@ def launch_setup(context, *args, **kwargs):
         event_handler=OnProcessExit(
             target_action=gz_spawn_entity, # Wait for the robot to be spawned in Gazebo
             on_exit=[
-                #ros2_control_node, # Then start the controller manager
+                ros2_control_node, # Then start the controller manager
                 joint_state_broadcaster_spawner, # Then spawn individual controllers
                 joint_trajectory_controller_spawner,
                 gripper_position_controller_spawner,
@@ -342,7 +349,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "rviz_config_file",
             default_value=PathJoinSubstitution(
-                [FindPackageShare("rom_ur_sim"), "rviz", "moveit.rviz"]
+                [FindPackageShare("rom_ur5_moveit_config"), "rviz", "moveit.rviz"]
             ),
             description="Rviz config file (absolute path) to use when launching rviz.",
         )
@@ -357,14 +364,6 @@ def generate_launch_description():
             "world_file",
             default_value="/root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/rom_arm_on_the_table.sdf",
             description="Gazebo world file (absolute path or filename from the gazebosim worlds collection) containing a custom world.",
-        )
-    )
-    # Declare use_sim_time argument
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='true',
-            description='Use simulation (Gazebo) clock if true'
         )
     )
 

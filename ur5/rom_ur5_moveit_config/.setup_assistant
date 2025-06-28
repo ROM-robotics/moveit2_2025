@@ -5,9 +5,9 @@ moveit_setup_assistant_config:
   srdf:
     relative_path: config/ur.srdf
   package_settings:
-    author_name: pyae soan aung
+    author_name: ROM DYNAMICS
     author_email: server01.psa1981@gmail.com
-    generated_timestamp: 1750582840
+    generated_timestamp: 1751131200
   control_xacro:
     command:
       - position
