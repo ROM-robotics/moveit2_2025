@@ -51,7 +51,7 @@
           </clip>
           <topic>/ur5/camera/image_raw</topic> 
         </camera>
-        
+
         <plugin filename="gz-sim-ros-image-bridge" name="gz::sim::systems::ImageBridge">
           <gz_topic>/camera_sensor/image</gz_topic>
           <ros_topic>/ur5/camera/image_raw</ros_topic>
@@ -67,7 +67,7 @@
             <frame_id>camera_link</frame_id> 
           </ros>
         </plugin> -->
-        
+
       </sensor>
     </link>
   </model>
