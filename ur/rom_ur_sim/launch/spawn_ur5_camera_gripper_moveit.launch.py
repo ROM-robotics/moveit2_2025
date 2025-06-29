@@ -144,11 +144,12 @@ def launch_setup(context, *args, **kwargs):
         'config',
         'ur5_controllers_gripper.yaml'
     )
+
     ros2_control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
         parameters=[
-            #{'robot_description': robot_description_content}, # Robot URDF content
+            {'robot_description': robot_description_content}, # Robot URDF content
             controllers_yaml_path, # Path to your robot's controller configurations
             {'use_sim_time': use_sim_time}, # Pass use_sim_time to ros2_control_node
         ],
@@ -212,6 +213,7 @@ def launch_setup(context, *args, **kwargs):
     use_sim_time_param = {"use_sim_time": use_sim_time} # Use use_sim_time variable
     config_dict = moveit_config.to_dict()
     config_dict.update(use_sim_time_param) # Ensure use_sim_time is passed to move_group
+
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
@@ -219,6 +221,7 @@ def launch_setup(context, *args, **kwargs):
         parameters=[config_dict],
         arguments=["--ros-args", "--log-level", "info"],
     )
+    
     # Register event handler to run spawners after ros2_control_node has started
     # This ensures that the controller manager is fully initialized and ready
     # before attempting to load and start controllers.
@@ -238,6 +241,7 @@ def launch_setup(context, *args, **kwargs):
         gz_launch_description,
         robot_state_publisher_node,
         gz_spawn_entity,
+        ros2_control_node,
         delay_rviz_after_joint_state_broadcaster_spawner,
         move_group_node,
         gz_sim_bridge,
