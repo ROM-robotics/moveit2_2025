@@ -286,7 +286,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "world_file",
-            default_value="/root/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/rom_arm_on_the_table.sdf",
+            default_value="/home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/rom_arm_on_the_table.sdf",
             description="Gazebo world file (absolute path or filename from the gazebosim worlds collection) containing a custom world.",
         )
     )
