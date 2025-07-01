@@ -12,15 +12,19 @@ windows:
   - Simulation: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; ros2 launch rom_ur_sim spawn_ur5_camera_gripper_moveit_table_yolo.launch.py
+        - clear; source ~/.bashrc; ros2 launch rom_ur_sim spawn_ur5_camera_gripper_moveit_table.launch.py
+  - Collision: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 3; ros2 run rom_add_collision add_table_node 
   - Yolo: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; source ~/yolo_env/env/bin/activate; sleep 3; ros2 launch yolov8_obb yolov8_obb.launch.py
+        - clear; source ~/.bashrc; #source ~/yolo_env/env/bin/activate; sleep 3; ros2 launch yolov8_obb yolov8_obb.launch.py
   - Ui: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; sleep 4; source ~/yolo_env/env/bin/activate; export QT_QPA_PLATFORM=wayland; python3 ~/devel_ws/src/moveit2_2025/ui/bolt_selector.py
+        - clear; source ~/.bashrc; #sleep 4; source ~/yolo_env/env/bin/activate; export QT_QPA_PLATFORM=wayland; python3 ~/devel_ws/src/moveit2_2025/ui/bolt_selector.py
   - Hand_Gesture: 
       root: ~/
       panes:
