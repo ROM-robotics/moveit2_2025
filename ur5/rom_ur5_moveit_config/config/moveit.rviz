@@ -6,8 +6,10 @@ Panels:
       Expanded:
         - /MotionPlanning1
         - /MotionPlanning1/Planned Path1
+        - /TF1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 600
+    Tree Height: 272
   - Class: rviz_common/Help
     Name: Help
   - Class: rviz_common/Views
@@ -208,7 +210,7 @@ Visualization Manager:
         Goal State Color: 250; 128; 0
         Interactive Marker Size: 0
         Joint Violation Color: 255; 0; 255
-        Planning Group: robotiq_gripper
+        Planning Group: ur5_manipulator
         Query Goal State: true
         Query Start State: false
         Show Workspace: false
@@ -354,6 +356,102 @@ Visualization Manager:
         Show Robot Visual: true
       Value: true
       Velocity_Scaling_Factor: 0.1
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        base:
+          Value: false
+        base_link:
+          Value: true
+        base_link_inertia:
+          Value: false
+        camera_link:
+          Value: false
+        camera_optical_link:
+          Value: false
+        flange:
+          Value: false
+        forearm_link:
+          Value: false
+        ft_frame:
+          Value: false
+        ground_plane:
+          Value: false
+        robotiq_85_base_link:
+          Value: false
+        robotiq_85_left_finger_link:
+          Value: false
+        robotiq_85_left_finger_tip_link:
+          Value: false
+        robotiq_85_left_inner_knuckle_link:
+          Value: false
+        robotiq_85_left_knuckle_link:
+          Value: false
+        robotiq_85_right_finger_link:
+          Value: false
+        robotiq_85_right_finger_tip_link:
+          Value: false
+        robotiq_85_right_inner_knuckle_link:
+          Value: false
+        robotiq_85_right_knuckle_link:
+          Value: false
+        shoulder_link:
+          Value: false
+        tool0:
+          Value: true
+        upper_arm_link:
+          Value: false
+        world:
+          Value: false
+        wrist_1_link:
+          Value: false
+        wrist_2_link:
+          Value: false
+        wrist_3_link:
+          Value: false
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        world:
+          base_link:
+            base:
+              {}
+            base_link_inertia:
+              shoulder_link:
+                upper_arm_link:
+                  forearm_link:
+                    wrist_1_link:
+                      wrist_2_link:
+                        wrist_3_link:
+                          flange:
+                            tool0:
+                              robotiq_85_base_link:
+                                robotiq_85_left_inner_knuckle_link:
+                                  {}
+                                robotiq_85_left_knuckle_link:
+                                  robotiq_85_left_finger_link:
+                                    robotiq_85_left_finger_tip_link:
+                                      {}
+                                robotiq_85_right_inner_knuckle_link:
+                                  {}
+                                robotiq_85_right_knuckle_link:
+                                  robotiq_85_right_finger_link:
+                                    robotiq_85_right_finger_tip_link:
+                                      {}
+                          ft_frame:
+                            {}
+            camera_link:
+              camera_optical_link:
+                {}
+          ground_plane:
+            {}
+      Update Interval: 0
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -372,7 +470,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 2
+      Distance: 5.5640387535095215
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -387,15 +485,15 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4347964525222778
+      Pitch: 0.37979647517204285
       Target Frame: world
       Value: Orbit (rviz_default_plugins)
-      Yaw: 5.505197525024414
+      Yaw: 5.512013912200928
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1872
+  Height: 1043
   Help:
     collapsed: false
   Hide Left Dock: false
@@ -404,9 +502,9 @@ Window Geometry:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000003a3000006b4fc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000007a00fffffffb000000100044006900730070006c006100790073010000006e000003500000018200fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006701000003ca00000358000002b800fffffffb0000000800480065006c0070000000029a0000006e000000d400fffffffb0000000a0056006900650077007300000005f0000001320000013200ffffff00000845000006b400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000003a3000003b9fc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004100fffffffb000000100044006900730070006c006100790073010000003d000001d7000000c900fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067010000021a000001dc0000017d00fffffffb0000000800480065006c0070000000029a0000006e0000006e00fffffffb0000000a0056006900650077007300000005f000000132000000a400ffffff000003d7000003b900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 3060
-  X: 140
-  Y: 54
+  Width: 1920
+  X: 0
+  Y: 0

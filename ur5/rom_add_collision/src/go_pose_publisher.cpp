@@ -3,7 +3,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <moveit_visual_tools/moveit_visual_tools.h> // Optional, but highly recommended for visualization
 #include <thread> // For sleep
-#include <moveit/moveit_core/moveit_error_code.h> // ADDED: Required for MoveItErrorCode::message()
+#include <moveit/core/error_code.h> // CORRECTED: Use this for MoveItErrorCode in Humble
 
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("moveit_pose_goal");
 
@@ -24,7 +24,7 @@ int main(int argc, char **argv)
   // Create a MoveGroupInterface
   // Replace "ur5_manipulator" with the actual name of your planning group
   // (e.g., "ur_arm" or "arm" from your SRDF).
-  static const std::string PLANNING_GROUP = "ur5_manipulator"; // Confirmed this is from your code
+  static const std::string PLANNING_GROUP = "ur5_manipulator"; 
   moveit::planning_interface::MoveGroupInterface move_group_interface(move_group_node, PLANNING_GROUP);
 
   // Get the name of the planning frame
@@ -32,7 +32,6 @@ int main(int argc, char **argv)
 
   // Get a list of all joint names in the planning group
   RCLCPP_INFO(LOGGER, "Joint names for group '%s': ", PLANNING_GROUP.c_str());
-  // FIX 1: Correctly access joint names for the active planning group via RobotModel
   if (move_group_interface.getRobotModel() && move_group_interface.getRobotModel()->hasJointModelGroup(PLANNING_GROUP)) {
       const moveit::core::JointModelGroup* joint_model_group = move_group_interface.getRobotModel()->getJointModelGroup(PLANNING_GROUP);
       if (joint_model_group) {
@@ -79,8 +78,8 @@ int main(int argc, char **argv)
     }
     else
     {
-      // FIX 2: Correctly get the string message for the error code
-      RCLCPP_ERROR(LOGGER, "Execution failed: %s", moveit::core::MoveItErrorCode(execute_result).message().c_str());
+      // CORRECTED: The message() method is part of the MoveItErrorCode object itself.
+      RCLCPP_ERROR(LOGGER, "Execution failed: %s", execute_result.message().c_str());
     }
   }
   else

@@ -28,21 +28,25 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(add_table_node src/add_table_collision.cpp)
+add_executable(add_table_node src/0_add_table_collision.cpp)
 ament_target_dependencies(add_table_node rclcpp moveit_msgs geometry_msgs shape_msgs)
 
-add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
-ament_target_dependencies(pose_goal_publisher
-  rclcpp
-  moveit_ros_planning_interface
-  geometry_msgs
-  moveit_core
-  moveit_visual_tools
-)
+add_executable(hello_moveit src/1_hello_moveit.cpp)
+ament_target_dependencies(hello_moveit rclcpp moveit_ros_planning_interface)
+
+# add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
+# ament_target_dependencies(pose_goal_publisher
+#   rclcpp
+#   moveit_ros_planning_interface
+#   geometry_msgs
+#   moveit_core
+#   moveit_visual_tools
+# )
 
 install(TARGETS
   add_table_node
-  pose_goal_publisher
+  hello_moveit
+  #pose_goal_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 
