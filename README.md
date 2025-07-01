@@ -12,3 +12,20 @@ create env
 pip install numpy==1.24.4
 pip install PyQt5
 ```
+
+```
+source /home/mr_robot/devel_ws/install/setup.bash
+source /home/mr_robot/moveit_ws/install/setup.bash
+source /home/mr_robot/ros2_ws/install/setup.bash
+#source /home/mr_robot/test_ws/install/setup.bash
+
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+#export ROS_DOMAIN_ID=69
+
+alias bb='colcon build && source install/setup.bash'
+alias delete_workspace='rm -rf build install log; echo "Done!"'
+alias bb_save='colcon build --executor sequential --parallel-workers 4'
+export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/root/devel_ws/src/moveit2_2025/ur5/
+export GZ_SIM_RESOURCE_PATH=$GZ_SIM_RESOURCE_PATH:/root/devel_ws/src/moveit2_2025/ur5/
+
+```
