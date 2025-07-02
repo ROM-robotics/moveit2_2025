@@ -17,22 +17,16 @@ int main(int argc, char* argv[])
   auto const node = std::make_shared<rclcpp::Node>(
       "moveit_pose_goal_args", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true));
 
-  // We spin up a single-threaded Executor for the current node.
-  // This is necessary for the MoveItSimpleControllerManager to receive feedback
-  // from the controllers.
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(node);
   std::thread([&executor]() { executor.spin(); }).detach();
-
-  // --- Argument Parsing ---
-  // Expected arguments: x y z roll pitch yaw (in degrees)
-  // Total 6 arguments after the executable name (argv[0])
+  
   if (argc != 7) {
     RCLCPP_ERROR(LOGGER, "Usage: %s <x> <y> <z> <roll_deg> <pitch_deg> <yaw_deg>", argv[0]);
     RCLCPP_ERROR(LOGGER, "Example: %s 0.2 0.3 0.5 0.0 0.0 0.0 (for identity orientation)", argv[0]);
     RCLCPP_ERROR(LOGGER, "Example: %s 0.2 -0.2 0.5 0.0 0.0 90.0 (for 90 degrees yaw)", argv[0]);
     rclcpp::shutdown();
-    return 1; // Indicate an error
+    return 1; // Indicate an error, 
   }
 
   geometry_msgs::msg::Pose target_pose;
@@ -55,13 +49,11 @@ int main(int argc, char* argv[])
     rclcpp::shutdown();
     return 1;
   }
-
-  // Convert Euler angles from degrees to radians
+  
   roll_rad = roll_deg * M_PI / 180.0;
   pitch_rad = pitch_deg * M_PI / 180.0;
   yaw_rad = yaw_deg * M_PI / 180.0;
-
-  // Convert Euler angles (roll_rad, pitch_rad, yaw_rad) to a Quaternion
+  
   tf2::Quaternion q;
   q.setRPY(roll_rad, pitch_rad, yaw_rad);
   target_pose.orientation.w = q.w();
@@ -77,24 +69,18 @@ int main(int argc, char* argv[])
   RCLCPP_INFO(LOGGER, "  Orientation (Quaternion): (w=%.3f, x=%.3f, y=%.3f, z=%.3f)",
               target_pose.orientation.w, target_pose.orientation.x,
               target_pose.orientation.y, target_pose.orientation.z);
-
-  // Create the MoveIt MoveGroup Interface
-  // Replace "ur5_manipulator" with the actual name of your planning group
+              
   static const std::string PLANNING_GROUP = "ur5_manipulator";
   using moveit::planning_interface::MoveGroupInterface;
   auto move_group_interface = MoveGroupInterface(node, PLANNING_GROUP);
-
-  // Get the name of the planning frame
+  
   RCLCPP_INFO(LOGGER, "Planning frame: %s", move_group_interface.getPlanningFrame().c_str());
 
-  // Set the target Pose
   move_group_interface.setPoseTarget(target_pose);
-
-  // Create a plan to that target pose
+  
   moveit::planning_interface::MoveGroupInterface::Plan my_plan;
   bool success = (move_group_interface.plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
 
-  // Execute the plan
   if (success)
   {
     RCLCPP_INFO(LOGGER, "Planning successful! Executing plan...");
@@ -112,8 +98,7 @@ int main(int argc, char* argv[])
   {
     RCLCPP_ERROR(LOGGER, "Planning failed!");
   }
-
-  // Shutdown ROS
+  
   rclcpp::shutdown();
   return 0;
 }

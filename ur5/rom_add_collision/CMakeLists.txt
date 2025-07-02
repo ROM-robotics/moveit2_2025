@@ -11,7 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(shape_msgs REQUIRED)
-
+find_package(std_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_visual_tools REQUIRED) # If you include it
@@ -34,6 +34,9 @@ ament_target_dependencies(add_table_node rclcpp moveit_msgs geometry_msgs shape_
 add_executable(hello_moveit src/1_hello_moveit.cpp)
 ament_target_dependencies(hello_moveit rclcpp moveit_ros_planning_interface)
 
+add_executable(gesture_moveit src/2_gesture_moveit.cpp)
+ament_target_dependencies(gesture_moveit rclcpp moveit_ros_planning_interface std_msgs)
+
 # add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
 # ament_target_dependencies(pose_goal_publisher
 #   rclcpp
@@ -46,6 +49,7 @@ ament_target_dependencies(hello_moveit rclcpp moveit_ros_planning_interface)
 install(TARGETS
   add_table_node
   hello_moveit
+  gesture_moveit
   #pose_goal_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
