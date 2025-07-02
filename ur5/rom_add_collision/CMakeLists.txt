@@ -14,7 +14,15 @@ find_package(shape_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_core REQUIRED)
-find_package(moveit_visual_tools REQUIRED) # If you include it
+find_package(moveit_visual_tools REQUIRED) 
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/GestureCommand.srv"
+  DEPENDENCIES std_msgs
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -34,8 +42,20 @@ ament_target_dependencies(add_table_node rclcpp moveit_msgs geometry_msgs shape_
 add_executable(hello_moveit src/1_hello_moveit.cpp)
 ament_target_dependencies(hello_moveit rclcpp moveit_ros_planning_interface)
 
-add_executable(gesture_moveit src/2_gesture_moveit.cpp)
-ament_target_dependencies(gesture_moveit rclcpp moveit_ros_planning_interface std_msgs)
+add_executable(gesture_moveit src/3_gesture_moveit_service.cpp)
+ament_target_dependencies(gesture_moveit rclcpp moveit_ros_planning_interface std_msgs tf2 tf2_geometry_msgs geometry_msgs moveit_core)
+ament_export_dependencies(rosidl_default_runtime)
+target_link_libraries(gesture_moveit
+  "${PROJECT_NAME}__rosidl_typesupport_cpp" # This is crucial for linking custom messages/services
+)
+
+# You should also ensure that the runtime dependencies for your generated interfaces are exported.
+# This makes it easier for other packages that might depend on your service.
+ament_export_dependencies(
+  rosidl_default_runtime
+  # You might want to export other common dependencies here too if your
+  # package provides a library that other packages will link against.
+)
 
 # add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
 # ament_target_dependencies(pose_goal_publisher

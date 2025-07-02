@@ -17,6 +17,10 @@ windows:
       root: ~/
       panes:
         - clear; source ~/.bashrc; sleep 3; ros2 run rom_add_collision add_table_node 
+  - GestureServer: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 5; ros2 run rom_add_collision gesture_moveit
   - Yolo: 
       root: ~/
       panes:
