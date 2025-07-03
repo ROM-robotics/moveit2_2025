@@ -48,15 +48,15 @@ ament_export_dependencies(rosidl_default_runtime)
 target_link_libraries(gesture_moveit
   "${PROJECT_NAME}__rosidl_typesupport_cpp" # This is crucial for linking custom messages/services
 )
-
-# You should also ensure that the runtime dependencies for your generated interfaces are exported.
-# This makes it easier for other packages that might depend on your service.
 ament_export_dependencies(
   rosidl_default_runtime
-  # You might want to export other common dependencies here too if your
-  # package provides a library that other packages will link against.
 )
 
+add_executable(service_caller src/4_service_caller.cpp)
+ament_target_dependencies(service_caller rclcpp std_msgs moveit_ros_planning_interface)
+target_link_libraries(service_caller
+  "${PROJECT_NAME}__rosidl_typesupport_cpp" # This is crucial for linking custom messages/services
+)
 # add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
 # ament_target_dependencies(pose_goal_publisher
 #   rclcpp
@@ -70,6 +70,7 @@ install(TARGETS
   add_table_node
   hello_moveit
   gesture_moveit
+  service_caller
   #pose_goal_publisher
   DESTINATION lib/${PROJECT_NAME}
 )

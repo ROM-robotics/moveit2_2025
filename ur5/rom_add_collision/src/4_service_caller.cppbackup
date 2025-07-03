@@ -1,0 +1,36 @@
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/string.hpp>
+
+class GestureSubscriber : public rclcpp::Node
+{
+public:
+    GestureSubscriber()
+    : Node("gesture_subscriber")
+    {
+        subscriber_ = this->create_subscription<std_msgs::msg::String>(
+            "gesture_command",
+            rclcpp::QoS(1), // QoS history depth
+            std::bind(&GestureSubscriber::gesture_callback, this, std::placeholders::_1));
+
+        RCLCPP_INFO(this->get_logger(), "Gesture Subscriber Node has been started.");
+    }
+
+private:
+
+    void gesture_callback(const std_msgs::msg::String::SharedPtr msg)
+    {
+        RCLCPP_INFO(this->get_logger(), "Received Gesture Command: '%s'", msg->data.c_str());
+    }
+
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscriber_; // Subscriber object
+};
+
+int main(int argc, char * argv[])
+{
+    rclcpp::init(argc, argv);
+    
+    rclcpp::spin(std::make_shared<GestureSubscriber>());
+    
+    rclcpp::shutdown();
+    return 0;
+}

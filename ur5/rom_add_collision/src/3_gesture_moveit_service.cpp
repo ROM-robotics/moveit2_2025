@@ -70,6 +70,12 @@ private:
         move_to_defined_pose(0.2, -0.2, 1.2, 0.0, 180.0, 0.0);
         command_executed = true;
       }
+      else if (request->command == "5")
+      {
+        RCLCPP_INFO(LOGGER, "Executing 'Return Home' command.");
+        move_to_defined_pose(0.078, 0.027, 1.724, 47.118, 8.183, -1.366);
+        command_executed = true;
+      }
       else
       {
         RCLCPP_INFO(LOGGER, "Unknown command received. Ignoring.");

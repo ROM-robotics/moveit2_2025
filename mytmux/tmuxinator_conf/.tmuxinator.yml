@@ -21,6 +21,14 @@ windows:
       root: ~/
       panes:
         - clear; source ~/.bashrc; sleep 5; ros2 run rom_add_collision gesture_moveit
+  - HandGesture: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 6; ros2 run ros2_opencv gesture_control
+  - CommunicationNode: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 7; ros2 run rom_add_collision service_caller
   - Yolo: 
       root: ~/
       panes:
@@ -29,7 +37,3 @@ windows:
       root: ~/
       panes:
         - clear; source ~/.bashrc; #sleep 4; source ~/yolo_env/env/bin/activate; export QT_QPA_PLATFORM=wayland; python3 ~/devel_ws/src/moveit2_2025/ui/bolt_selector.py
-  - Hand_Gesture: 
-      root: ~/
-      panes:
-        - clear; source ~/.bashrc; #ros2 launch rom_ur_sim test.launch.py
