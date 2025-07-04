@@ -32,7 +32,7 @@ windows:
   - YoloUiMoveitControl: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; #sleep 7; ros2 run rom_add_collision service_caller
+        - clear; source ~/.bashrc; #sleep 7; ros2 run rom_add_collision arm_controller_for_ui
   - Yolo: 
       root: ~/
       panes:

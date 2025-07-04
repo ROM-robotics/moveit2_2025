@@ -31,11 +31,8 @@ public:
         init_angle_ = -0.3825;  // offset to pick angle
     }
 
-    // New initialization method for MoveGroupInterface // because of bad_weak_ptr
     void initialize_move_groups()
     {
-        // Now it's safe to call shared_from_this() as the node is fully constructed
-        // and managed by a shared_ptr from main().
         arm_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "ur5_manipulator");
         hand_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "robotiq_gripper");
 
@@ -51,8 +48,10 @@ private:
     {
         RCLCPP_INFO(this->get_logger(), "Planning trajectory");
         moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+
         //bool success = (move_group->plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
         bool success = (move_group->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
+
         if (success)
         {
             RCLCPP_INFO(this->get_logger(), "Executing plan");
@@ -68,8 +67,7 @@ private:
             rclcpp::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
         }
     }
-
-    // Function to move a gripper
+    
     void move_to(double x, double y, double z, double xo, double yo, double zo, double wo)
     {
         geometry_msgs::msg::PoseStamped pose_goal;
@@ -189,27 +187,21 @@ int main(int argc, char* argv[])
     controller_node->initialize_move_groups();
 
     RCLCPP_INFO(controller_node->get_logger(), "Controller node is ready to receive commands.");
-
-    // Use a MultiThreadedExecutor to allow MoveIt's action clients to operate
+    
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(controller_node);
 
     RCLCPP_INFO(controller_node->get_logger(), "Executor is set up with the controller node.");
-
-    // Spin the executor in a separate thread
+    
     std::thread([&executor]() { executor.spin(); }).detach();
 
     RCLCPP_INFO(controller_node->get_logger(), "Controller node is spinning.");
 
-    while (rclcpp::ok()) {
-        // This loop keeps the main thread alive.
-        // You can add other non-ROS related main thread logic here if needed.
-        // Sleeping prevents the main thread from consuming 100% CPU.
-        std::this_thread::sleep_for(std::chrono::milliseconds(500)); 
+    while (rclcpp::ok()) 
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
     }
-
-    // Keep the main thread alive, or use a loop if you have other tasks
-    // For this example, we'll just wait for shutdown
+    
     rclcpp::shutdown();
 
     return 0;
