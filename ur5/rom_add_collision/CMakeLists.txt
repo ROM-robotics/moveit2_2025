@@ -57,6 +57,13 @@ ament_target_dependencies(service_caller rclcpp std_msgs moveit_ros_planning_int
 target_link_libraries(service_caller
   "${PROJECT_NAME}__rosidl_typesupport_cpp" # This is crucial for linking custom messages/services
 )
+
+add_executable(arm_controller_for_ui src/5_arm_controller_from_ui.cpp)
+ament_target_dependencies(arm_controller_for_ui rclcpp moveit_ros_planning_interface)
+
+add_executable(test_controller src/6_arm_controller_from_ui_test_publisher.cpp)
+ament_target_dependencies(test_controller rclcpp moveit_ros_planning_interface)
+
 # add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
 # ament_target_dependencies(pose_goal_publisher
 #   rclcpp
@@ -71,6 +78,8 @@ install(TARGETS
   hello_moveit
   gesture_moveit
   service_caller
+  arm_controller_for_ui
+  test_controller
   #pose_goal_publisher
   DESTINATION lib/${PROJECT_NAME}
 )

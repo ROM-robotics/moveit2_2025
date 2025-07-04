@@ -17,18 +17,22 @@ windows:
       root: ~/
       panes:
         - clear; source ~/.bashrc; sleep 3; ros2 run rom_add_collision add_table_node 
-  - GestureServer: 
+  - GestureServerMoveitControl: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; sleep 5; ros2 run rom_add_collision gesture_moveit
+        - clear; source ~/.bashrc; #sleep 5; ros2 run rom_add_collision gesture_moveit
   - HandGesture: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; sleep 6; ros2 run ros2_opencv gesture_control
+        - clear; source ~/.bashrc; #sleep 6; ros2 run ros2_opencv gesture_control
   - CommunicationNode: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; sleep 7; ros2 run rom_add_collision service_caller
+        - clear; source ~/.bashrc; #sleep 7; ros2 run rom_add_collision service_caller
+  - YoloUiMoveitControl: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; #sleep 7; ros2 run rom_add_collision service_caller
   - Yolo: 
       root: ~/
       panes:

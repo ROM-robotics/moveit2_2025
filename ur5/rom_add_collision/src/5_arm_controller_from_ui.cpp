@@ -19,33 +19,40 @@
 class Controller : public rclcpp::Node
 {
 public:
-    Controller() : Node("commander")
+    Controller() : Node("arm_controller_from_ui")
     {
-        arm_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "ur5_manipulator");
-        
-        hand_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "robotiq_gripper");
-
-        arm_move_group_->setPoseReferenceFrame("base_link");
-        arm_move_group_->setEndEffectorLink("tool0");
-
-
         subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>("/target_point", 10, std::bind(&Controller::listener_callback, this, std::placeholders::_1));
 
         RCLCPP_INFO(this->get_logger(), "Commander node has been initialized.");
 
         height_ = 0.18;
-        pick_height_ = 0.126;
-        carrying_height_ = 0.3;
-        init_angle_ = -0.3825;
+        pick_height_ = 0.126;   // down from height_
+        carrying_height_ = 0.3; // up after picking, and place height
+        init_angle_ = -0.3825;  // offset to pick angle
     }
+
+    // New initialization method for MoveGroupInterface // because of bad_weak_ptr
+    void initialize_move_groups()
+    {
+        // Now it's safe to call shared_from_this() as the node is fully constructed
+        // and managed by a shared_ptr from main().
+        arm_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "ur5_manipulator");
+        hand_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "robotiq_gripper");
+
+        arm_move_group_->setPoseReferenceFrame("base_link");
+        arm_move_group_->setEndEffectorLink("tool0");
+
+        RCLCPP_INFO(this->get_logger(), "MoveGroupInterfaces initialized.");
+    }
+
 
 private:
     void plan_and_execute(std::shared_ptr<moveit::planning_interface::MoveGroupInterface>& move_group, double sleep_time = 0.0)
     {
         RCLCPP_INFO(this->get_logger(), "Planning trajectory");
         moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-        bool success = (move_group->plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-
+        //bool success = (move_group->plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        bool success = (move_group->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
         if (success)
         {
             RCLCPP_INFO(this->get_logger(), "Executing plan");
@@ -82,27 +89,68 @@ private:
     // Function for a gripper action
     void gripper_action(const std::string& action)
     {
-        moveit::core::RobotState current_state = hand_move_group_->getCurrentState();
-        std::vector<double> joint_group_positions;
-        current_state.copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
+        // moveit::core::RobotState current_state = hand_move_group_->getCurrentState();
+        // std::vector<double> joint_group_positions;
+        // current_state.copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
 
-        if (action == "open")
-        {
-            joint_group_positions[0] = 0.03; // Assuming panda_finger_joint1 is the first joint
-        }
-        else if (action == "close")
-        {
-            joint_group_positions[0] = 0.001; // Assuming panda_finger_joint1 is the first joint
-        }
-        else
-        {
-            RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
-            return;
-        }
+        // if (action == "open")
+        // {
+        //     joint_group_positions[0] = 0.03; // Assuming panda_finger_joint1 is the first joint
+        // }
+        // else if (action == "close")
+        // {
+        //     joint_group_positions[0] = 0.001; // Assuming panda_finger_joint1 is the first joint
+        // }
+        // else
+        // {
+        //     RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
+        //     return;
+        // }
 
-        hand_move_group_->setJointValueTarget(joint_group_positions);
-        plan_and_execute(hand_move_group_, 3.0);
+        // hand_move_group_->setJointValueTarget(joint_group_positions);
+        // plan_and_execute(hand_move_group_, 3.0);
     }
+    // Function for a gripper action
+    // void gripper_action(const std::string& action)
+    // {
+    //     if (!hand_move_group_) {
+    //         RCLCPP_ERROR(this->get_logger(), "Hand MoveGroupInterface is not initialized! Cannot perform gripper action.");
+    //         return;
+    //     }
+        
+    //     moveit::core::RobotStatePtr current_state = hand_move_group_->getCurrentState();
+    //     if (!current_state) {
+    //         RCLCPP_ERROR(this->get_logger(), "Could not get current robot state for gripper.");
+    //         return;
+    //     }
+        
+    //     std::vector<double> joint_group_positions;
+    //     current_state->copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
+
+    //     if (joint_group_positions.empty()) {
+    //         RCLCPP_ERROR(this->get_logger(), "No joint positions found for gripper group. Check SRDF/URDF.");
+    //         return;
+    //     }
+
+    //     // IMPORTANT: This block was commented out in your provided code, causing the warning.
+    //     // Uncommenting it will resolve the 'unused parameter' warning.
+    //     if (action == "open")
+    //     {
+    //         joint_group_positions[0] = 0.03; // Example open value
+    //     }
+    //     else if (action == "close")
+    //     {
+    //         joint_group_positions[0] = 0.001; // Example close value (almost closed)
+    //     }
+    //     else
+    //     {
+    //         RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
+    //         return;
+    //     }
+
+    //     hand_move_group_->setJointValueTarget(joint_group_positions);
+    //     plan_and_execute(hand_move_group_, 3.0);
+    // }
 
     void listener_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
     {
@@ -110,24 +158,18 @@ private:
 
         // Move to initial height
         move_to(msg->data[0], msg->data[1], height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
-
-        // Open gripper
-        gripper_action("open");
-
-        // Move to pick height
-        move_to(msg->data[0], msg->data[1], pick_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
-
-        // Close gripper
-        gripper_action("close");
-
-        // Move to carrying height
-        move_to(msg->data[0], msg->data[1], carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
-
-        // Move to drop-off location
-        move_to(0.3, -0.3, carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
-
-        // Open gripper
-        gripper_action("open");
+        
+        // gripper_action("open");
+        
+        // move_to(msg->data[0], msg->data[1], pick_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
+        
+        // gripper_action("close");
+        
+        // move_to(msg->data[0], msg->data[1], carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
+        
+        // move_to(0.3, -0.3, carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
+        
+        // gripper_action("open");
     }
 
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
@@ -144,18 +186,31 @@ int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
     auto controller_node = std::make_shared<Controller>();
+    controller_node->initialize_move_groups();
+
+    RCLCPP_INFO(controller_node->get_logger(), "Controller node is ready to receive commands.");
 
     // Use a MultiThreadedExecutor to allow MoveIt's action clients to operate
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(controller_node);
 
+    RCLCPP_INFO(controller_node->get_logger(), "Executor is set up with the controller node.");
+
     // Spin the executor in a separate thread
     std::thread([&executor]() { executor.spin(); }).detach();
 
+    RCLCPP_INFO(controller_node->get_logger(), "Controller node is spinning.");
+
+    while (rclcpp::ok()) {
+        // This loop keeps the main thread alive.
+        // You can add other non-ROS related main thread logic here if needed.
+        // Sleeping prevents the main thread from consuming 100% CPU.
+        std::this_thread::sleep_for(std::chrono::milliseconds(500)); 
+    }
+
     // Keep the main thread alive, or use a loop if you have other tasks
     // For this example, we'll just wait for shutdown
-    rclcpp::waitForShutdown();
-
     rclcpp::shutdown();
+
     return 0;
 }
