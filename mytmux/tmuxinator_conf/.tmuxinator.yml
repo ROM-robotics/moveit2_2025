@@ -25,19 +25,19 @@ windows:
       root: ~/
       panes:
         - clear; source ~/.bashrc; #sleep 6; ros2 run ros2_opencv gesture_control
-  - CommunicationNode: 
+  - Comm_HG_GSMC: 
       root: ~/
       panes:
         - clear; source ~/.bashrc; #sleep 7; ros2 run rom_add_collision service_caller
   - YoloUiMoveitControl: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; #sleep 7; ros2 run rom_add_collision arm_controller_for_ui
+        - clear; source ~/.bashrc; sleep 5; ros2 run rom_add_collision arm_controller_for_ui
   - Yolo: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; #source ~/yolo_env/env/bin/activate; sleep 3; ros2 launch yolov8_obb yolov8_obb.launch.py
+        - clear; source ~/.bashrc; sleep 6; source ~/yolo_env/bin/activate; sleep 3; ros2 launch yolov8_obb yolov8_obb.launch.py
   - Ui: 
       root: ~/
       panes:
-        - clear; source ~/.bashrc; #sleep 4; source ~/yolo_env/env/bin/activate; export QT_QPA_PLATFORM=wayland; python3 ~/devel_ws/src/moveit2_2025/ui/bolt_selector.py
+        - clear; source ~/.bashrc; sleep 7; source ~/yolo_env/bin/activate; export QT_QPA_PLATFORM=wayland; python3 ~/devel_ws/src/moveit2_2025/ui/bolt_selector.py

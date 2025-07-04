@@ -23,8 +23,8 @@ int main(int argc, char* argv[])
   
   if (argc != 7) {
     RCLCPP_ERROR(LOGGER, "Usage: %s <x> <y> <z> <roll_deg> <pitch_deg> <yaw_deg>", argv[0]);
-    RCLCPP_ERROR(LOGGER, "Example: %s 0.2 0.3 0.5 0.0 0.0 0.0 (for identity orientation)", argv[0]);
-    RCLCPP_ERROR(LOGGER, "Example: %s 0.2 -0.2 0.5 0.0 0.0 90.0 (for 90 degrees yaw)", argv[0]);
+    RCLCPP_ERROR(LOGGER, "Example: %s 0.2 -0.2 1.2 0.0 0.0 0.0 (for identity orientation)", argv[0]);
+    RCLCPP_ERROR(LOGGER, "Example: %s 0.2 -0.2 1.2 0.0 180.0 90.0 ", argv[0]);
     rclcpp::shutdown();
     return 1; // Indicate an error, 
   }

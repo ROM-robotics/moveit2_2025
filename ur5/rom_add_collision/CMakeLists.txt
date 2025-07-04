@@ -59,7 +59,7 @@ target_link_libraries(service_caller
 )
 
 add_executable(arm_controller_for_ui src/5_arm_controller_from_ui.cpp)
-ament_target_dependencies(arm_controller_for_ui rclcpp moveit_ros_planning_interface)
+ament_target_dependencies(arm_controller_for_ui rclcpp moveit_ros_planning_interface tf2 tf2_geometry_msgs)
 
 add_executable(test_controller src/6_arm_controller_from_ui_test_publisher.cpp)
 ament_target_dependencies(test_controller rclcpp moveit_ros_planning_interface)

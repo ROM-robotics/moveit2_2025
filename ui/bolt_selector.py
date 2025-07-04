@@ -69,8 +69,9 @@ class GUI(QDialog):
         self.fy = 253.93635749816895
         self.cx = 320
         self.cy = 240
-        self.z = 0.7
-        self.init_x = -0.5 # camera positon - robot arm link 0 initial position
+        self.z = 1.2 # ROM ROBOTICS ADD
+        #self.init_x = -0.5 # camera positon - robot arm link 0 initial position
+        self.init_x = 0.0
         self.init_y = 0.0
 
     def camera_callback(self, data):

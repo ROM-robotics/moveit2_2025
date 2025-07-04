@@ -6,6 +6,11 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 
+// Include TF2 for quaternion operations
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2/LinearMath/Matrix3x3.h" // Not strictly needed for this, but useful
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" 
+
 // MoveIt 2 includes
 #include "moveit/move_group_interface/move_group_interface.h"
 #include "moveit/planning_scene_interface/planning_scene_interface.h"
@@ -25,10 +30,13 @@ public:
 
         RCLCPP_INFO(this->get_logger(), "Commander node has been initialized.");
 
-        height_ = 0.18;
         pick_height_ = 0.126;   // down from height_
         carrying_height_ = 0.3; // up after picking, and place height
-        init_angle_ = -0.3825;  // offset to pick angle
+
+        
+        height_ = 0.23;         // tool0 link is 23 centimeters from base_link ( 18 cm is collide to bolt )
+        pick_height_ = 0.17;    // to pick lower height to tool0 link
+        init_angle_ = 1.3201;      // for adjust z-axis of tool0 
     }
 
     void initialize_move_groups()
@@ -155,7 +163,17 @@ private:
         RCLCPP_INFO(this->get_logger(), "Received data: [%f, %f, %f]", msg->data[0], msg->data[1], msg->data[2]);
 
         // Move to initial height
-        move_to(msg->data[0], msg->data[1], height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
+        //move_to(msg->data[0], msg->data[1], height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0); 
+        double final_yaw_angle = init_angle_ + msg->data[2]; // msg->data[2] is the angle from Python (in radians)
+
+        tf2::Quaternion q_yaw_from_bolt;
+        q_yaw_from_bolt.setRPY(0, 3.14, 1.57); // y=180, z=90 , it's ok
+        q_yaw_from_bolt.setRPY(0, M_PI, final_yaw_angle);
+
+        // Convert tf2::Quaternion to geometry_msgs::msg::Quaternion
+        geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(q_yaw_from_bolt);
+        
+        move_to(msg->data[0], msg->data[1], height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w);
         
         // gripper_action("open");
         
