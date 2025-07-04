@@ -16,7 +16,7 @@ bridge = CvBridge()
 class Camera_subscriber(Node):
 
     def __init__(self):
-        super().__init__('camera_subscriber_from_yolo')
+        super().__init__('yolo_image_subscriber')
 
         self.model = YOLO(os.environ['HOME'] + '/devel_ws/src/moveit2_2025/yolov8_obb/scripts/best.pt')
 

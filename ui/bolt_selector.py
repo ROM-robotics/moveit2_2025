@@ -56,7 +56,7 @@ class GUI(QDialog):
         self.yolo_subscriber = Node('yolo_subscriber_from_qt')
         self.sub = self.yolo_subscriber.create_subscription(Yolov8Inference, '/Yolov8_Inference', self.yolo_callback, 10)
 
-        self.pub_node = Node('pub_path_from_qt')
+        self.pub_node = Node('path_publisher_from_qt')
         self.pub = self.pub_node.create_publisher(Float64MultiArray, '/target_point', 10)
 
         self.timer = QTimer(self)

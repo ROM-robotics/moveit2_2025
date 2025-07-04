@@ -34,7 +34,7 @@
     <joint name="camera_joint" type="fixed">
         <parent link="base_link"/>
         <child link="camera_link"/>
-        <origin xyz="0.5 0 0.7" rpy="0 1.57 0" />
+        <origin xyz="0.2 0.6 1.2" rpy="0 1.570796326 0" />
     </joint>
 
     <link name="camera_optical_link"></link>
@@ -83,19 +83,24 @@
         <sensor name="camera" type="camera">
             <pose> 0 0 0 0 0 0 </pose>
             <visualize>true</visualize>
-            <update_rate>10</update_rate>
+            <update_rate>30.0</update_rate>
             <camera>
                 <camera_info_topic>camera/camera_info</camera_info_topic>
-                <horizontal_fov>1.089</horizontal_fov>
+                <horizontal_fov>1.8</horizontal_fov>
                 <image>
                     <format>R8G8B8</format>
                     <width>640</width>
                     <height>480</height>
                 </image>
                 <clip>
-                    <near>0.05</near>
-                    <far>8.0</far>
+                    <near>0.02</near>
+                    <far>300</far>
                 </clip>
+                <noise>
+                <type>gaussian</type>
+                <mean>0.0</mean>
+                <stddev>0.007</stddev>
+              </noise>
             </camera>
             <topic>camera/image_raw</topic>
             <gz_frame_id>camera_link_optical</gz_frame_id>
