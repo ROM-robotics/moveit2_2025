@@ -5,12 +5,12 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /MotionPlanning1/Planned Path1
+        - /TF1
         - /TF1/Frames1
         - /Image1
-        - /Image1/Status1
         - /Image1/Topic1
       Splitter Ratio: 0.5
-    Tree Height: 533
+    Tree Height: 151
   - Class: rviz_common/Help
     Name: Help
   - Class: rviz_common/Views
@@ -401,7 +401,7 @@ Visualization Manager:
         shoulder_link:
           Value: false
         tool0:
-          Value: true
+          Value: false
         upper_arm_link:
           Value: false
         world:
@@ -454,7 +454,7 @@ Visualization Manager:
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/Image
-      Enabled: true
+      Enabled: false
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -466,7 +466,7 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /camera/image_raw
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -485,43 +485,43 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 5.5640387535095215
+      Distance: 7.795927047729492
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.10000000149011612
-        Y: 0.25
-        Z: 0.30000001192092896
+        X: -2.4517383575439453
+        Y: -1.5049458742141724
+        Z: 1.0187501907348633
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.37979647517204285
+      Pitch: 0.3897964358329773
       Target Frame: world
       Value: Orbit (rviz_default_plugins)
-      Yaw: 5.512013912200928
+      Yaw: 0.4488402009010315
     Saved: ~
 Window Geometry:
   Displays:
-    collapsed: false
-  Height: 1872
+    collapsed: true
+  Height: 1385
   Help:
     collapsed: false
-  Hide Left Dock: false
+  Hide Left Dock: true
   Hide Right Dock: false
   Image:
-    collapsed: false
+    collapsed: true
   MotionPlanning:
-    collapsed: false
+    collapsed: true
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000003a3000006b4fc0200000006fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000007a00fffffffb000000100044006900730070006c006100790073010000006e0000030d0000018200fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670100000387000002b8000002b800fffffffb0000000800480065006c0070000000029a0000006e000000d400fffffffb0000000a0056006900650077007300000005f0000001320000013200fffffffb0000000a0049006d006100670065010000064b000000d70000004a00ffffff00000845000006b400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000003a3000004cdfc0200000006fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000007a00fffffffb000000100044006900730070006c006100790073000000006e0000018f0000018200fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000209000002b8000002b800fffffffb0000000800480065006c0070000000029a0000006e000000d400fffffffb0000000a0056006900650077007300000005f0000001320000013200fffffffb0000000a0049006d00610067006500000004cd0000006e0000004a00ffffff00000498000004cd00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 3060
-  X: 140
-  Y: 54
+  Width: 1176
+  X: 1872
+  Y: 443

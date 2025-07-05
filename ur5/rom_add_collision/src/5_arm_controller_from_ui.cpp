@@ -180,16 +180,16 @@ private:
         RCLCPP_INFO(this->get_logger(), "Reached pick height.");
 
 
-        /*
+
         // --- 4. Close Gripper (Grasp) and Attach Bolt ---
         RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
-        gripper_action("close");
+        gripper_action("close");/*
         // After the gripper is closed, attach the bolt to the gripper
         attach_bolt_to_gripper(bolt_id, gripper_palm_link, gripper_finger_links);
         RCLCPP_INFO(this->get_logger(), "Gripper closed and bolt attached.");
 
 
-
+        
         // --- 5. Move up to carrying height ---
         RCLCPP_INFO(this->get_logger(), "Attempting to move to carrying height...");
         if (  !move_to(msg->data[0], msg->data[1], carrying_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
