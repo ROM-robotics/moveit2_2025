@@ -37,7 +37,7 @@ if(BUILD_TESTING)
 endif()
 
 add_executable(add_table_node src/0_add_table_collision.cpp)
-ament_target_dependencies(add_table_node rclcpp moveit_msgs geometry_msgs shape_msgs)
+ament_target_dependencies(add_table_node rclcpp moveit_msgs geometry_msgs shape_msgs tf2 tf2_geometry_msgs)
 
 add_executable(hello_moveit src/1_hello_moveit.cpp)
 ament_target_dependencies(hello_moveit rclcpp moveit_ros_planning_interface)

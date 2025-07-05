@@ -21,6 +21,8 @@
 #include "moveit_msgs/msg/collision_object.hpp"
 #include "moveit_msgs/msg/joint_constraint.hpp"
 
+#define UNUSED(x) (void)(x)
+
 class Controller : public rclcpp::Node
 {
 public:
@@ -30,13 +32,15 @@ public:
 
         RCLCPP_INFO(this->get_logger(), "Commander node has been initialized.");
 
-        pick_height_ = 0.126;   // down from height_
+        
         carrying_height_ = 0.3; // up after picking, and place height
 
         
         height_ = 0.23;         // tool0 link is 23 centimeters from base_link ( 18 cm is collide to bolt )
-        pick_height_ = 0.17;    // to pick lower height to tool0 link
-        init_angle_ = 1.3201;      // for adjust z-axis of tool0 
+        pick_height_ = 0.165;    // 17 cm from base_link to tool0 link, for picking bolt
+        init_angle_ = 1.3201;   // for adjust z-axis of tool0 
+
+        planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
     }
 
     void initialize_move_groups()
@@ -52,7 +56,7 @@ public:
 
 
 private:
-    void plan_and_execute(std::shared_ptr<moveit::planning_interface::MoveGroupInterface>& move_group, double sleep_time = 0.0)
+    bool plan_and_execute(std::shared_ptr<moveit::planning_interface::MoveGroupInterface>& move_group, double sleep_time = 0.0)
     {
         RCLCPP_INFO(this->get_logger(), "Planning trajectory");
         moveit::planning_interface::MoveGroupInterface::Plan my_plan;
@@ -74,9 +78,10 @@ private:
         {
             rclcpp::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
         }
+        return success;
     }
     
-    void move_to(double x, double y, double z, double xo, double yo, double zo, double wo)
+    bool move_to(double x, double y, double z, double xo, double yo, double zo, double wo)
     {
         geometry_msgs::msg::PoseStamped pose_goal;
         pose_goal.header.frame_id = "base_link";
@@ -89,114 +94,243 @@ private:
         pose_goal.pose.orientation.w = wo;
 
         arm_move_group_->setPoseTarget(pose_goal);
-        plan_and_execute(arm_move_group_, 3.0);
+        bool success = plan_and_execute(arm_move_group_, 3.0);
+        return success;
     }
 
     // Function for a gripper action
     void gripper_action(const std::string& action)
     {
-        // moveit::core::RobotState current_state = hand_move_group_->getCurrentState();
-        // std::vector<double> joint_group_positions;
-        // current_state.copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
-
-        // if (action == "open")
-        // {
-        //     joint_group_positions[0] = 0.03; // Assuming panda_finger_joint1 is the first joint
-        // }
-        // else if (action == "close")
-        // {
-        //     joint_group_positions[0] = 0.001; // Assuming panda_finger_joint1 is the first joint
-        // }
-        // else
-        // {
-        //     RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
-        //     return;
-        // }
-
-        // hand_move_group_->setJointValueTarget(joint_group_positions);
-        // plan_and_execute(hand_move_group_, 3.0);
+        if (action == "open")
+        {
+            hand_move_group_->setNamedTarget("open");
+        }
+        else if (action == "close")
+        {
+            hand_move_group_->setNamedTarget("close");
+        }
+        else
+        {
+            RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
+            return;
+        }
+        plan_and_execute(hand_move_group_, 3.0);
     }
-    // Function for a gripper action
-    // void gripper_action(const std::string& action)
-    // {
-    //     if (!hand_move_group_) {
-    //         RCLCPP_ERROR(this->get_logger(), "Hand MoveGroupInterface is not initialized! Cannot perform gripper action.");
-    //         return;
-    //     }
-        
-    //     moveit::core::RobotStatePtr current_state = hand_move_group_->getCurrentState();
-    //     if (!current_state) {
-    //         RCLCPP_ERROR(this->get_logger(), "Could not get current robot state for gripper.");
-    //         return;
-    //     }
-        
-    //     std::vector<double> joint_group_positions;
-    //     current_state->copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
-
-    //     if (joint_group_positions.empty()) {
-    //         RCLCPP_ERROR(this->get_logger(), "No joint positions found for gripper group. Check SRDF/URDF.");
-    //         return;
-    //     }
-
-    //     // IMPORTANT: This block was commented out in your provided code, causing the warning.
-    //     // Uncommenting it will resolve the 'unused parameter' warning.
-    //     if (action == "open")
-    //     {
-    //         joint_group_positions[0] = 0.03; // Example open value
-    //     }
-    //     else if (action == "close")
-    //     {
-    //         joint_group_positions[0] = 0.001; // Example close value (almost closed)
-    //     }
-    //     else
-    //     {
-    //         RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
-    //         return;
-    //     }
-
-    //     hand_move_group_->setJointValueTarget(joint_group_positions);
-    //     plan_and_execute(hand_move_group_, 3.0);
-    // }
 
     void listener_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
     {
         RCLCPP_INFO(this->get_logger(), "Received data: [%f, %f, %f]", msg->data[0], msg->data[1], msg->data[2]);
 
-        // Move to initial height
-        //move_to(msg->data[0], msg->data[1], height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0); 
-        double final_yaw_angle = init_angle_ + msg->data[2]; // msg->data[2] is the angle from Python (in radians)
-
+        double final_yaw_angle = init_angle_ + msg->data[2];
         tf2::Quaternion q_yaw_from_bolt;
-        q_yaw_from_bolt.setRPY(0, 3.14, 1.57); // y=180, z=90 , it's ok
         q_yaw_from_bolt.setRPY(0, M_PI, final_yaw_angle);
-
-        // Convert tf2::Quaternion to geometry_msgs::msg::Quaternion
         geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(q_yaw_from_bolt);
-        
-        move_to(msg->data[0], msg->data[1], height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w);
-        
-        // gripper_action("open");
-        
-        // move_to(msg->data[0], msg->data[1], pick_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
-        
-        // gripper_action("close");
-        
-        // move_to(msg->data[0], msg->data[1], carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
-        
-        // move_to(0.3, -0.3, carrying_height_, 1.0, init_angle_ + msg->data[2], 0.0, 0.0);
-        
-        // gripper_action("open");
+
+        // Define bolt properties (adjust these based on your actual bolt and setup)
+        const std::string bolt_id = "target_bolt";
+        const double bolt_radius = 0.01; 
+        const double bolt_height = 0.05; 
+        const std::string world_frame = "world"; // Or your robot's base frame, e.g., "base_link"
+
+        // Adjust bolt_z to place the base of the cylinder on the table if table is at Z=0
+        // or center the cylinder if z is its center.
+        const double bolt_z_on_table = 1.050 - 0.040;  // bolt's height from sdf - offset
+        const double bolt_center_z = bolt_z_on_table + bolt_height / 2.0;
+
+        // Define your gripper's link name and touch links
+        const std::string gripper_palm_link = "robotiq_85_base_link"; 
+        const std::vector<std::string> gripper_finger_links = {
+            "robotiq_85_left_knuckle_link",
+            "robotiq_85_left_finger_link",
+            "robotiq_85_right_knuckle_link",
+            "robotiq_85_right_finger_link"
+        };
+
+        // --- 0. Add the bolt as a collision object before any movement towards it ---
+        add_bolt_to_planning_scene(bolt_id, msg->data[0], msg->data[1], bolt_center_z, bolt_radius, bolt_height, world_frame, 0, M_PI, final_yaw_angle);
+
+
+        // --- 1. Move to initial height (pre-grasp) ---
+        /*
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to initial height...");
+        if (  !move_to(msg->data[0], msg->data[1], height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to initial height (pre-grasp). Aborting pick operation.");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "Reached initial height.");
+        */
+
+
+        // --- 2. Open Gripper ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to open gripper...");
+        gripper_action("open");
+        RCLCPP_INFO(this->get_logger(), "Gripper opened.");
+
+
+
+        // --- 3. Move down to pick height ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
+        if (  !move_to(msg->data[0], msg->data[1], pick_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to pick height. Check collision objects and pick_height_!");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "Reached pick height.");
+
+
+        /*
+        // --- 4. Close Gripper (Grasp) and Attach Bolt ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
+        gripper_action("close");
+        // After the gripper is closed, attach the bolt to the gripper
+        attach_bolt_to_gripper(bolt_id, gripper_palm_link, gripper_finger_links);
+        RCLCPP_INFO(this->get_logger(), "Gripper closed and bolt attached.");
+
+
+
+        // --- 5. Move up to carrying height ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to carrying height...");
+        if (  !move_to(msg->data[0], msg->data[1], carrying_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to carrying height with attached bolt.");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "Reached carrying height.");
+
+
+
+        // --- 6. Move to a safe 'place' position (e.g., above drop-off) ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to drop-off pre-position...");
+        if (!move_to(0.3, -0.3, carrying_height_, final_ros_orientation.x, final_ros_orientation.y,final_ros_orientation.z, final_ros_orientation.w))
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to drop-off pre-position.");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "Reached drop-off pre-position.");
+
+
+
+        // --- 7. Open Gripper to release and Detach Bolt ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to open gripper for release and detach bolt...");
+        gripper_action("open");
+        // After opening the gripper, detach the bolt. It will be re-added to the world scene.
+        detach_bolt_from_gripper(bolt_id, gripper_palm_link);
+        RCLCPP_INFO(this->get_logger(), "Gripper opened and bolt detached.");
+
+        // (Optional) Move away from the released object if necessary
+        // Example: move up slightly after release
+        // if (!move_to(0.3, -0.3, carrying_height_ + 0.05, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)) {
+        //     RCLCPP_ERROR(this->get_logger(), "Failed to move away after release.");
+        //     return;
+        // }
+        */
     }
 
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> arm_move_group_;
     std::shared_ptr<moveit::planning_interface::MoveGroupInterface> hand_move_group_;
 
+    std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;
+
+    void add_bolt_to_planning_scene(const std::string& bolt_id, double x, double y, double z, double radius, double height, const std::string& frame_id, double roll, double pitch, double yaw);
+    void attach_bolt_to_gripper(const std::string& bolt_id, const std::string& gripper_link_name, const std::vector<std::string>& touch_links);
+    void detach_bolt_from_gripper(const std::string& bolt_id, const std::string& gripper_link_name);
+
     double height_;
     double pick_height_;
     double carrying_height_;
     double init_angle_;
 };
+
+void Controller::add_bolt_to_planning_scene(const std::string& bolt_id, double x, double y, double z, double radius, double height, const std::string& frame_id, double roll, double pitch, double yaw)
+{
+    if (!planning_scene_interface_) {
+        RCLCPP_ERROR(this->get_logger(), "PlanningSceneInterface not initialized. Cannot add bolt.");
+        return;
+    }
+
+    moveit_msgs::msg::CollisionObject bolt_object;
+    bolt_object.header.frame_id = frame_id;
+    bolt_object.id = bolt_id;
+    
+    shape_msgs::msg::SolidPrimitive cylinder;
+    cylinder.type = shape_msgs::msg::SolidPrimitive::CYLINDER;
+    cylinder.dimensions.resize(2);
+    cylinder.dimensions[shape_msgs::msg::SolidPrimitive::CYLINDER_HEIGHT] = height;
+    cylinder.dimensions[shape_msgs::msg::SolidPrimitive::CYLINDER_RADIUS] = radius;
+    
+    geometry_msgs::msg::Pose bolt_pose;
+    bolt_pose.position.x = x;
+    bolt_pose.position.y = y;
+    bolt_pose.position.z = z;
+
+    tf2::Quaternion tmp_from_bolt;
+        tmp_from_bolt.setRPY(0, yaw, 0);
+        UNUSED(roll);
+        UNUSED(pitch);
+        geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(tmp_from_bolt);
+
+    bolt_pose.orientation = final_ros_orientation;
+    
+    bolt_object.primitives.push_back(cylinder);
+    bolt_object.primitive_poses.push_back(bolt_pose);
+    
+    bolt_object.operation = moveit_msgs::msg::CollisionObject::ADD;
+
+    std::vector<moveit_msgs::msg::CollisionObject> collision_objects;
+    collision_objects.push_back(bolt_object);
+
+    planning_scene_interface_->addCollisionObjects(collision_objects);
+    RCLCPP_INFO(this->get_logger(), "Added bolt '%s' to the planning scene at [%.2f, %.2f, %.2f].", bolt_id.c_str(), x, y, z);
+}
+
+void Controller::attach_bolt_to_gripper(const std::string& bolt_id, const std::string& gripper_link_name, const std::vector<std::string>& touch_links)
+{
+    if (!planning_scene_interface_) {
+        RCLCPP_ERROR(this->get_logger(), "PlanningSceneInterface not initialized. Cannot attach bolt.");
+        return;
+    }
+
+    // First, remove the object from the world collision scene
+    // It must not be in the world scene when being attached
+    moveit_msgs::msg::CollisionObject remove_from_world;
+    remove_from_world.id = bolt_id;
+    remove_from_world.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+    planning_scene_interface_->applyCollisionObject(remove_from_world);
+    RCLCPP_INFO(this->get_logger(), "Removed bolt '%s' from world collision scene before attaching.", bolt_id.c_str());
+
+
+    // Now, create the AttachedCollisionObject message
+    moveit_msgs::msg::AttachedCollisionObject attached_bolt;
+    attached_bolt.link_name = gripper_link_name;
+    attached_bolt.object.id = bolt_id;
+    attached_bolt.object.operation = moveit_msgs::msg::CollisionObject::ADD; // Add as an attached object
+
+    // Specify which links of the robot are allowed to touch the attached object
+    // (e.g., your gripper fingers)
+    attached_bolt.touch_links = touch_links;
+
+    planning_scene_interface_->applyAttachedCollisionObject(attached_bolt);
+    RCLCPP_INFO(this->get_logger(), "Attached bolt '%s' to gripper link '%s'.", bolt_id.c_str(), gripper_link_name.c_str());
+}
+
+
+void Controller::detach_bolt_from_gripper(const std::string& bolt_id, const std::string& gripper_link_name)
+{
+    if (!planning_scene_interface_) {
+        RCLCPP_ERROR(this->get_logger(), "PlanningSceneInterface not initialized. Cannot detach bolt.");
+        return;
+    }
+
+    moveit_msgs::msg::AttachedCollisionObject detached_bolt;
+    detached_bolt.link_name = gripper_link_name;
+    detached_bolt.object.id = bolt_id;
+    detached_bolt.object.operation = moveit_msgs::msg::CollisionObject::REMOVE; // Remove as an attached object
+
+    planning_scene_interface_->applyAttachedCollisionObject(detached_bolt);
+    RCLCPP_INFO(this->get_logger(), "Detached bolt '%s' from gripper link '%s'. It is now back in the world scene.", bolt_id.c_str(), gripper_link_name.c_str());
+}
 
 int main(int argc, char* argv[])
 {
