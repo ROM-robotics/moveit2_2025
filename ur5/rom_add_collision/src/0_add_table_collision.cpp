@@ -24,21 +24,22 @@ public:
     
     std::this_thread::sleep_for(std::chrono::seconds(2));
     
-    publishTable();
+    //publishOneTable();
+    publishTwoTables();
     //publishBolt1();
 
     RCLCPP_INFO(this->get_logger(), "AddCollisionObjectNode initialized and table published.");
   }
 
 private:
-  void publishTable()
+  void publishOneTable()
   {
     moveit_msgs::msg::CollisionObject table_object;
     
     table_object.header.frame_id = "world";
     table_object.header.stamp = this->now();
     
-    table_object.id = "work_table";
+    table_object.id = "work_table1";
     
     shape_msgs::msg::SolidPrimitive primitive;
     primitive.type = shape_msgs::msg::SolidPrimitive::BOX;
@@ -63,12 +64,52 @@ private:
     table_object.primitive_poses.push_back(pose);
     table_object.operation = moveit_msgs::msg::CollisionObject::ADD;
     
-    RCLCPP_INFO(this->get_logger(), "Attempting to publish table collision object '%s'...", table_object.id.c_str());
+    RCLCPP_INFO(this->get_logger(), "Attempting to publish table 1 collision object '%s'...", table_object.id.c_str());
     collision_object_publisher_->publish(table_object);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     collision_object_publisher_->publish(table_object);
-    RCLCPP_INFO(this->get_logger(), "Table collision object published successfully.");
+    RCLCPP_INFO(this->get_logger(), "Table 1 collision object published successfully.");
+  }
+
+  void publishTwoTables()
+  {
+    moveit_msgs::msg::CollisionObject table_object;
+    
+    table_object.header.frame_id = "world";
+    table_object.header.stamp = this->now();
+    
+    table_object.id = "work_table2";
+    
+    shape_msgs::msg::SolidPrimitive primitive;
+    primitive.type = shape_msgs::msg::SolidPrimitive::BOX;
+    
+    primitive.dimensions.resize(3); 
+    primitive.dimensions[0] = 1.6;  
+    primitive.dimensions[1] = 1.5;  
+    primitive.dimensions[2] = 1.015; 
+    
+    geometry_msgs::msg::Pose pose;
+    pose.position.x = -0.115;
+    pose.position.y = 0.0;
+    
+    pose.position.z = primitive.dimensions[2] / 2.0;
+    
+    pose.orientation.x = 0.0;
+    pose.orientation.y = 0.0;
+    pose.orientation.z = 0.7071;
+    pose.orientation.w = 0.7071;
+    
+    table_object.primitives.push_back(primitive);
+    table_object.primitive_poses.push_back(pose);
+    table_object.operation = moveit_msgs::msg::CollisionObject::ADD;
+    
+    RCLCPP_INFO(this->get_logger(), "Attempting to publish table 2 collision object '%s'...", table_object.id.c_str());
+    collision_object_publisher_->publish(table_object);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    collision_object_publisher_->publish(table_object);
+    RCLCPP_INFO(this->get_logger(), "Table 2 collision object published successfully.");
   }
 
   void publishBolt1()

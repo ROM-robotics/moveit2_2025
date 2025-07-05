@@ -122,14 +122,15 @@ private:
         RCLCPP_INFO(this->get_logger(), "Received data: [%f, %f, %f]", msg->data[0], msg->data[1], msg->data[2]);
 
         double final_yaw_angle = init_angle_ + msg->data[2];
+        double yaw_for_collision = msg->data[2] + 0.0; // Adjust this value if needed for collision avoidance
         tf2::Quaternion q_yaw_from_bolt;
         q_yaw_from_bolt.setRPY(0, M_PI, final_yaw_angle);
         geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(q_yaw_from_bolt);
 
         // Define bolt properties (adjust these based on your actual bolt and setup)
         const std::string bolt_id = "target_bolt";
-        const double bolt_radius = 0.01; 
-        const double bolt_height = 0.05; 
+        const double bolt_radius = 0.02; 
+        const double bolt_height = 0.065; 
         const std::string world_frame = "world"; // Or your robot's base frame, e.g., "base_link"
 
         // Adjust bolt_z to place the base of the cylinder on the table if table is at Z=0
@@ -147,7 +148,7 @@ private:
         };
 
         // --- 0. Add the bolt as a collision object before any movement towards it ---
-        add_bolt_to_planning_scene(bolt_id, msg->data[0], msg->data[1], bolt_center_z, bolt_radius, bolt_height, world_frame, 0, M_PI, final_yaw_angle);
+        add_bolt_to_planning_scene(bolt_id, msg->data[0], msg->data[1], bolt_center_z, bolt_radius, bolt_height, world_frame, 0, M_PI, yaw_for_collision);
 
 
         // --- 1. Move to initial height (pre-grasp) ---
@@ -266,7 +267,7 @@ void Controller::add_bolt_to_planning_scene(const std::string& bolt_id, double x
     bolt_pose.position.z = z;
 
     tf2::Quaternion tmp_from_bolt;
-        tmp_from_bolt.setRPY(0, yaw, 0);
+        tmp_from_bolt.setRPY(yaw, 1.5, 0);
         UNUSED(roll);
         UNUSED(pitch);
         geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(tmp_from_bolt);
