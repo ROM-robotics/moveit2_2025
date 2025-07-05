@@ -52,6 +52,19 @@ public:
         arm_move_group_->setEndEffectorLink("tool0");
 
         RCLCPP_INFO(this->get_logger(), "MoveGroupInterfaces initialized.");
+
+        // --- ADDED: Move to 'HOME' position ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move arm to 'HOME' position...");
+        arm_move_group_->setNamedTarget("home");
+        if (plan_and_execute(arm_move_group_, 3.0)) 
+        {
+            RCLCPP_INFO(this->get_logger(), "Successfully moved arm to 'HOME' position.");
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move arm to 'HOME' position. Check 'HOME' state definition and initial robot state.");
+        }
+        // --- END ADDED ---
     }
 
 
@@ -99,21 +112,45 @@ private:
     }
 
     // Function for a gripper action
-    void gripper_action(const std::string& action)
+    void gripper_action(const std::string& action, double custom_joint_value = -1.0) // -1.0 as a sentinel for 'not provided'
     {
-        if (action == "open")
+        moveit::core::RobotStatePtr current_state = hand_move_group_->getCurrentState();
+        std::vector<double> joint_group_positions;
+        current_state->copyJointGroupPositions(hand_move_group_->getCurrentState()->getJointModelGroup(hand_move_group_->getName()), joint_group_positions);
+
+        const moveit::core::JointModelGroup* joint_model_group = hand_move_group_->getCurrentState()->getJointModelGroup("robotiq_gripper");
+        if (!joint_model_group) {
+            RCLCPP_ERROR(this->get_logger(), "Joint model group 'robotiq_gripper' not found.");
+            return;
+        }
+        
+        std::string target_joint_name = "robotiq_85_left_knuckle_joint";
+        double target_value;
+
+        if (custom_joint_value >= 0.0) // If a custom value is provided, use it directly, 0.5765 = 22mm
         {
-            hand_move_group_->setNamedTarget("open");
+            target_value = custom_joint_value;
+            RCLCPP_INFO(this->get_logger(), "Setting gripper joint '%s' to custom value: %f", target_joint_name.c_str(), target_value);
+        }
+        else if (action == "open")
+        {
+            target_value = 0.0; // Fully Open: 85 mm
+            RCLCPP_INFO(this->get_logger(), "Setting gripper to fully open (85mm).");
         }
         else if (action == "close")
         {
-            hand_move_group_->setNamedTarget("close");
+            target_value = 0.7779; // Fully Closed: 0 mm
+            RCLCPP_INFO(this->get_logger(), "Setting gripper to fully closed (0mm).");
         }
         else
         {
-            RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
+            RCLCPP_INFO(this->get_logger(), "No such action or invalid custom value for gripper: %s", action.c_str());
             return;
         }
+        std::map<std::string, double> joint_targets;
+        joint_targets[target_joint_name] = target_value;
+        hand_move_group_->setJointValueTarget(joint_targets);
+
         plan_and_execute(hand_move_group_, 3.0);
     }
 
@@ -183,7 +220,9 @@ private:
 
         // --- 4. Close Gripper (Grasp) and Attach Bolt ---
         RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
-        gripper_action("close");/*
+        gripper_action("custom", 0.5765);   // For 22 mm opening
+        
+        /*
         // After the gripper is closed, attach the bolt to the gripper
         attach_bolt_to_gripper(bolt_id, gripper_palm_link, gripper_finger_links);
         RCLCPP_INFO(this->get_logger(), "Gripper closed and bolt attached.");

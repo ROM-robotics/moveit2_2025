@@ -124,8 +124,24 @@ def generate_launch_description():
     bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
-        arguments=['/camera/image_raw@sensor_msgs/msg/Image@gz.msgs.Image'], 
-        output='screen'
+        name='cam_bridge',
+        arguments=[
+            '/camera/image_raw@sensor_msgs/msg/Image@gz.msgs.Image', 
+            #'/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock'
+            ], 
+        output='screen',
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+    )
+
+    clock_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='clock_bridge',
+        output='screen',
+        arguments=[
+            '/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock',
+        ],
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
     )
 
     rviz_node = Node(
@@ -139,6 +155,7 @@ def generate_launch_description():
             moveit_config.robot_description_semantic,
             moveit_config.planning_pipelines,
             moveit_config.robot_description_kinematics,
+            {'use_sim_time': LaunchConfiguration('use_sim_time')}
         ],
     )
 
@@ -150,7 +167,8 @@ def generate_launch_description():
         executable="ros2_control_node",
         parameters=[
             {'robot_description': robot_description_content},
-            controllers_yaml_path
+            controllers_yaml_path,
+            {'use_sim_time': LaunchConfiguration('use_sim_time')}
         ],
         output="screen",
     )

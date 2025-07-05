@@ -1,0 +1,35 @@
+# ./.tmuxinator.yml
+
+name: ROM Dynamics 
+root: ~/
+
+pre_window: export PS1=" \[$(tput sgr0)\]\[$(tput bold)\]\[\033[38;5;45m\]>>>\[$(tput sgr0)\] \[$(tput sgr0)\]"
+
+startup_window: Hardware
+# startup_pane: 0
+
+windows:
+  - Simulation: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; ros2 launch rom_ur_sim spawn_ur5_camera_gripper_moveit_table.launch.py use_sim_time:=true
+  - Collision: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 3; ros2 run rom_add_collision add_table_node 
+  - Clock: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 7; ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock --ros-args -p use_sim_time:=true
+  - YoloUiMoveitControl: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 9; ros2 run rom_add_collision arm_controller_for_ui
+  - Yolo: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 10; source ~/yolo_env/bin/activate; sleep 3; ros2 launch yolov8_obb yolov8_obb.launch.py
+  - Ui: 
+      root: ~/
+      panes:
+        - clear; source ~/.bashrc; sleep 12; source ~/yolo_env/bin/activate; export QT_QPA_PLATFORM=wayland; python3 ~/devel_ws/src/moveit2_2025/ui/bolt_selector.py
