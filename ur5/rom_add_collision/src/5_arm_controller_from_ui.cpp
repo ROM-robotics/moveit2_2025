@@ -201,7 +201,7 @@ private:
 
 
 
-        // --- 3. Move down to pick height ---
+        // // --- 3. Move down to pick height ---
         // RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
         // if (  !move_to(msg->data[0], msg->data[1], pick_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
         // {
@@ -212,9 +212,9 @@ private:
 
 
         
-        // --- 4. Close Gripper (Grasp) and Attach Bolt ---
-        //RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
-        //gripper_action("close");
+        // // --- 4. Close Gripper (Grasp) and Attach Bolt ---
+        // RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
+        // gripper_action("close");
         /*
         
         // After the gripper is closed, attach the bolt to the gripper

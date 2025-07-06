@@ -10,26 +10,22 @@ startup_window: Hardware
 
 windows:
   - Simulation: 
-      root: ~/
+      root: ~/devel_ws/
       panes:
         - clear; source ~/.bashrc; ros2 launch rom_ur_sim spawn_ur5_camera_gripper_moveit_table.launch.py use_sim_time:=true
   - Collision: 
-      root: ~/
+      root: ~/devel_ws/
       panes:
         - clear; source ~/.bashrc; sleep 3; ros2 run rom_add_collision add_table_node 
   - Clock: 
-      root: ~/
+      root: ~/devel_ws/
       panes:
         - clear; source ~/.bashrc; sleep 7; ros2 run ros_gz_bridge parameter_bridge /clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock --ros-args -p use_sim_time:=true
-  - YoloUiMoveitControl: 
-      root: ~/
+  - Mtc: 
+      root: ~/devel_ws/
       panes:
-        - clear; source ~/.bashrc; sleep 9; ros2 run rom_add_collision arm_controller_for_ui
-  - Yolo: 
-      root: ~/
+        - clear; source ~/.bashrc; sleep 9; ros2 launch mtc_tutorial mtc_demo_custom.launch.py
+  - Debug: 
+      root: ~/devel_ws
       panes:
-        - clear; source ~/.bashrc; sleep 10; source ~/yolo_env/env/bin/activate; sleep 3; ros2 launch yolov8_obb yolov8_obb.launch.py
-  - Ui: 
-      root: ~/
-      panes:
-        - clear; source ~/.bashrc; sleep 12; source ~/yolo_env/env/bin/activate; export QT_QPA_PLATFORM=wayland; python3 ~/devel_ws/src/moveit2_2025/ui/bolt_selector.py
+        - clear; source ~/.bashrc; 

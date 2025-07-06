@@ -205,11 +205,13 @@ def generate_launch_description():
     config_dict = moveit_config.to_dict()
     config_dict.update(use_sim_time)
 
+    move_group_capabilities = {"capabilities": "move_group/ExecuteTaskSolutionCapability"}
+
     move_group_node = Node(
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
-        parameters=[config_dict, {"use_sim_time": True}],
+        parameters=[config_dict, move_group_capabilities, {"use_sim_time": True}],
         arguments=["--ros-args", "--log-level", "info"],
     )
     # Register event handler to run spawners after ros2_control_node has started
