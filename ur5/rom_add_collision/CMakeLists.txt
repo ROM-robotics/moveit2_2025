@@ -22,6 +22,11 @@ find_package(moveit_visual_tools REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning REQUIRED)
 
+find_package(moveit_task_constructor_core REQUIRED)
+find_package(moveit_task_constructor_msgs REQUIRED)
+# find_package(moveit_task_constructor_solvers REQUIRED)
+# find_package(moveit_task_constructor_stages REQUIRED)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GestureCommand.srv"
   DEPENDENCIES std_msgs
@@ -55,6 +60,7 @@ ament_export_dependencies(
   rosidl_default_runtime
 )
 
+
 add_executable(service_caller src/4_service_caller.cpp)
 ament_target_dependencies(service_caller rclcpp std_msgs moveit_ros_planning_interface)
 target_link_libraries(service_caller
@@ -66,6 +72,10 @@ ament_target_dependencies(arm_controller_for_ui rclcpp moveit_ros_planning_inter
 
 add_executable(test_controller src/6_arm_controller_from_ui_test_publisher.cpp)
 ament_target_dependencies(test_controller rclcpp moveit_ros_planning_interface)
+
+# add_executable(arm_controller_mtc_for_ui src/7_arm_controller_from_ui_mtc.cpp)
+# ament_target_dependencies(arm_controller_mtc_for_ui rclcpp moveit_ros_planning_interface tf2 tf2_geometry_msgs moveit_core moveit_ros_planning moveit_task_constructor_core)
+
 
 # add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
 # ament_target_dependencies(pose_goal_publisher
@@ -83,6 +93,7 @@ install(TARGETS
   service_caller
   arm_controller_for_ui
   test_controller
+  #arm_controller_mtc_for_ui
   #pose_goal_publisher
   DESTINATION lib/${PROJECT_NAME}
 )

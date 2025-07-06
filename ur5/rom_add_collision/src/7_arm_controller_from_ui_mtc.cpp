@@ -26,7 +26,8 @@
 
 namespace mtc = moveit::task_constructor;
 
-class Controller : public rclcpp::Node
+// It's good practice to derive from enable_shared_from_this if you use shared_from_this()
+class Controller : public rclcpp::Node, public std::enable_shared_from_this<Controller>
 {
 public:
     Controller() : Node("arm_controller_mtc")
@@ -71,11 +72,6 @@ private:
         const double bolt_height = 0.065;
 
         // Assuming table is at Z=0. If not, adjust bolt_z_on_table and bolt_center_z.
-        // The value 1.050 - 0.040 in your original code seems very specific.
-        // For a general setup, if the table is at Z=0 in Gazebo/Rviz, and the object base is on it,
-        // its center Z would be bolt_height / 2.0.
-        // For demonstration, let's assume a fixed Z relative to the world frame.
-        // You'll need to verify this value for your specific simulation/hardware setup.
         const double bolt_center_z = 0.0325; // Assuming table at Z=0, bolt_height/2
 
         // Define gripper finger links for allowing collisions
@@ -88,7 +84,7 @@ private:
         // Create the MTC task
         mtc::Task task;
         task.stages()->setName("Pick and Place Bolt");
-        task.loadRobotModel(this->get_node_base_interface());
+        task.loadRobotModel(shared_from_this()); // Keep this as it's the correct way for the Node object
 
         // Set properties for the task (e.g., planning groups, end-effector)
         task.setProperty("group", arm_group_name_);
@@ -125,7 +121,7 @@ private:
             auto stage = std::make_unique<mtc::stages::MoveTo>("move_to_pre_grasp", pipeline_planner);
             stage->setGroup(arm_group_name_);
             stage->setGoal(createPoseStamped(msg->data[0], msg->data[1], height_, final_ros_orientation));
-            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"});
+            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"}); // FIX: Revert to mtc::Stage::PREDECESSOR
             task.add(std::move(stage));
         }
 
@@ -133,7 +129,6 @@ private:
         // Adds the bolt to the planning scene. This is a scene modification.
         {
             auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("add_bolt");
-            stage->waitForPlanningSceneUpdates(std::chrono::microseconds(100)); // Wait for scene updates
 
             // Create the collision object
             moveit_msgs::msg::CollisionObject bolt_object;
@@ -176,7 +171,7 @@ private:
                 auto stage = std::make_unique<mtc::stages::MoveRelative>("approach", cartesian_planner);
                 stage->setGroup(arm_group_name_);
                 stage->setIKFrame(eef_link_);
-                stage->setDirection(createVector3d(0.0, 0.0, pick_height_ - height_)); // Relative Z move
+                stage->setDirection(createVector3d(0.0, 0.0, pick_height_ - height_, eef_link_)); // FIX: Pass eef_link_ as frame_id
                 pick->add(std::move(stage));
             }
 
@@ -212,7 +207,7 @@ private:
                 auto stage = std::make_unique<mtc::stages::MoveRelative>("lift", cartesian_planner);
                 stage->setGroup(arm_group_name_);
                 stage->setIKFrame(eef_link_);
-                stage->setDirection(createVector3d(0.0, 0.0, carrying_height_ - pick_height_)); // Relative Z move
+                stage->setDirection(createVector3d(0.0, 0.0, carrying_height_ - pick_height_, eef_link_)); // FIX: Pass eef_link_ as frame_id
                 pick->add(std::move(stage));
             }
             task.add(std::move(pick));
@@ -225,7 +220,7 @@ private:
             stage->setGroup(arm_group_name_);
             // Example place location: 0.3m in X, -0.3m in Y, at carrying height
             stage->setGoal(createPoseStamped(0.3, -0.3, carrying_height_, final_ros_orientation));
-            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"});
+            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"}); // FIX: Revert to mtc::Stage::PREDECESSOR
             task.add(std::move(stage));
         }
 
@@ -242,7 +237,7 @@ private:
                 stage->setGroup(arm_group_name_);
                 stage->setIKFrame(eef_link_);
                 // Assuming drop height is pick_height_ for symmetry or adjust as needed
-                stage->setDirection(createVector3d(0.0, 0.0, pick_height_ - carrying_height_));
+                stage->setDirection(createVector3d(0.0, 0.0, pick_height_ - carrying_height_, eef_link_)); // FIX: Pass eef_link_ as frame_id
                 place->add(std::move(stage));
             }
 
@@ -275,7 +270,7 @@ private:
                 auto stage = std::make_unique<mtc::stages::MoveRelative>("retreat", cartesian_planner);
                 stage->setGroup(arm_group_name_);
                 stage->setIKFrame(eef_link_);
-                stage->setDirection(createVector3d(0.0, 0.0, 0.05)); // Move up by 5cm
+                stage->setDirection(createVector3d(0.0, 0.0, 0.05, eef_link_)); // FIX: Pass eef_link_ as frame_id
                 place->add(std::move(stage));
             }
             task.add(std::move(place));
@@ -287,7 +282,7 @@ private:
             auto stage = std::make_unique<mtc::stages::MoveTo>("move_to_home", pipeline_planner);
             stage->setGroup(arm_group_name_);
             stage->setGoal("home");
-            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"});
+            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"}); // FIX: Revert to mtc::Stage::PREDECESSOR
             task.add(std::move(stage));
         }
 
@@ -298,7 +293,7 @@ private:
         }
         catch (mtc::InitStageException& e)
         {
-            RCLCPP_ERROR_STREAM(this->get_logger(), e);
+            RCLCPP_ERROR_STREAM(this->get_logger(), e.what()); // Use e.what() to get string description
             return;
         }
 
@@ -335,14 +330,15 @@ private:
         return pose;
     }
 
-    // Helper function to create a Vector3d message
-    geometry_msgs::msg::Vector3 createVector3d(double x, double y, double z)
+    // Modified Helper function to create a Vector3d message (now Vector3Stamped)
+    geometry_msgs::msg::Vector3Stamped createVector3d(double x, double y, double z, const std::string& frame_id)
     {
-        geometry_msgs::msg::Vector3 vec;
-        vec.x = x;
-        vec.y = y;
-        vec.z = z;
-        return vec;
+        geometry_msgs::msg::Vector3Stamped vec_stamped;
+        vec_stamped.header.frame_id = frame_id;
+        vec_stamped.vector.x = x;
+        vec_stamped.vector.y = y;
+        vec_stamped.vector.z = z;
+        return vec_stamped;
     }
 
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
