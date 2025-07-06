@@ -209,7 +209,7 @@ def generate_launch_description():
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
-        parameters=[config_dict],
+        parameters=[config_dict, {"use_sim_time": True}],
         arguments=["--ros-args", "--log-level", "info"],
     )
     # Register event handler to run spawners after ros2_control_node has started

@@ -8,16 +8,19 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(moveit_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(shape_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(moveit_ros_planning_interface REQUIRED)
-find_package(moveit_core REQUIRED)
-find_package(moveit_visual_tools REQUIRED) 
+
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+
+find_package(moveit_ros_planning_interface REQUIRED)
+find_package(moveit_core REQUIRED)
+find_package(moveit_visual_tools REQUIRED) 
+find_package(moveit_msgs REQUIRED)
+find_package(moveit_ros_planning REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GestureCommand.srv"
@@ -59,7 +62,7 @@ target_link_libraries(service_caller
 )
 
 add_executable(arm_controller_for_ui src/5_arm_controller_from_ui.cpp)
-ament_target_dependencies(arm_controller_for_ui rclcpp moveit_ros_planning_interface tf2 tf2_geometry_msgs)
+ament_target_dependencies(arm_controller_for_ui rclcpp moveit_ros_planning_interface tf2 tf2_geometry_msgs moveit_core moveit_ros_planning)
 
 add_executable(test_controller src/6_arm_controller_from_ui_test_publisher.cpp)
 ament_target_dependencies(test_controller rclcpp moveit_ros_planning_interface)

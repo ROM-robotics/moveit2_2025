@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: rom_ur_sim
+    relative_path: urdf/ur5_camera_gripper.urdf.xacro
+  srdf:
+    relative_path: config/ur.srdf
+  package_settings:
+    author_name: rom_dynmics_moveit
+    author_email: server01.psa1981@gmail.com
+    generated_timestamp: 1751781005
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity

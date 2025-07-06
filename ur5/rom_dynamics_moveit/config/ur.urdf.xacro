@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="ur">
+    <!-- Import ur urdf file -->
+    <xacro:include filename="$(find rom_ur_sim)/urdf/ur5_camera_gripper.urdf.xacro" />
+
+</robot>

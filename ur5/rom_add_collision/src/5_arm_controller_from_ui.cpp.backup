@@ -11,27 +11,15 @@
 #include "tf2/LinearMath/Matrix3x3.h" // Not strictly needed for this, but useful
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" 
 
-
-// MoveIt 2 Core includes (added explicitly for robustness)
-// These define foundational classes like RobotModel and RobotState, which trajectory processing depends on.
-#include "moveit/robot_model/robot_model.h"
-#include "moveit/robot_state/robot_state.h"
-
-// MoveIt 2 Planning Interface includes
+// MoveIt 2 includes
 #include "moveit/move_group_interface/move_group_interface.h"
 #include "moveit/planning_scene_interface/planning_scene_interface.h"
-#include "moveit/robot_state/conversions.h" // Already there, but good to keep grouped
-
-// MoveIt 2 Messages includes
+#include "moveit/robot_state/conversions.h"
 #include "moveit_msgs/msg/display_robot_state.hpp"
 #include "moveit_msgs/msg/display_trajectory.hpp"
 #include "moveit_msgs/msg/attached_collision_object.hpp"
 #include "moveit_msgs/msg/collision_object.hpp"
 #include "moveit_msgs/msg/joint_constraint.hpp"
-
-// MoveIt 2 Trajectory processing includes
-#include <moveit/robot_trajectory/robot_trajectory.h>
-#include <moveit/trajectory_processing/time_parameterization.h>
 
 #define UNUSED(x) (void)(x)
 
@@ -124,30 +112,47 @@ private:
     }
 
     // Function for a gripper action
-    void gripper_action(const std::string& action)
+    void gripper_action(const std::string& action, double custom_joint_value = -1.0) // -1.0 as a sentinel for 'not provided'
     {
-        // No need to get current_state and modify joint_group_positions
-        // when using predefined poses.
-        // moveit::core::RobotState current_state = *(hand_move_group_->getCurrentState());
-        // std::vector<double> joint_group_positions;
-        // current_state.copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
+        moveit::core::RobotStatePtr current_state = hand_move_group_->getCurrentState();
+        std::vector<double> joint_group_positions;
+        current_state->copyJointGroupPositions(hand_move_group_->getCurrentState()->getJointModelGroup(hand_move_group_->getName()), joint_group_positions);
 
-        if (action == "open")
+        const moveit::core::JointModelGroup* joint_model_group = hand_move_group_->getCurrentState()->getJointModelGroup("robotiq_gripper");
+        if (!joint_model_group) {
+            RCLCPP_ERROR(this->get_logger(), "Joint model group 'robotiq_gripper' not found.");
+            return;
+        }
+        
+        std::string target_joint_name = "robotiq_85_left_knuckle_joint";
+        double target_value;
+
+        if (custom_joint_value >= 0.0) // If a custom value is provided, use it directly, 0.5765 = 22mm
         {
-            hand_move_group_->setNamedTarget("open");
+            target_value = custom_joint_value;
+            RCLCPP_INFO(this->get_logger(), "Setting gripper joint '%s' to custom value: %f", target_joint_name.c_str(), target_value);
+        }
+        else if (action == "open")
+        {
+            target_value = 0.0; // Fully Open: 85 mm
+            RCLCPP_INFO(this->get_logger(), "Setting gripper to fully open (85mm).");
         }
         else if (action == "close")
         {
-            hand_move_group_->setNamedTarget("close");
+            target_value = 0.7779; // Fully Closed: 0 mm
+            RCLCPP_INFO(this->get_logger(), "Setting gripper to fully closed (0mm).");
         }
         else
         {
-            RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
+            RCLCPP_INFO(this->get_logger(), "No such action or invalid custom value for gripper: %s", action.c_str());
             return;
         }
+        std::map<std::string, double> joint_targets;
+        joint_targets[target_joint_name] = target_value;
+        hand_move_group_->setJointValueTarget(joint_targets);
+
         plan_and_execute(hand_move_group_, 3.0);
     }
-
 
     void listener_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
     {
@@ -184,6 +189,7 @@ private:
 
 
         // --- 1. Move to initial height (pre-grasp) ---
+        /*
         RCLCPP_INFO(this->get_logger(), "Attempting to move to initial height...");
         if (  !move_to(msg->data[0], msg->data[1], height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
         {
@@ -191,7 +197,7 @@ private:
             return;
         }
         RCLCPP_INFO(this->get_logger(), "Reached initial height.");
-        
+        */
 
 
         // --- 2. Open Gripper ---
@@ -202,21 +208,21 @@ private:
 
 
         // --- 3. Move down to pick height ---
-        // RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
-        // if (  !move_to(msg->data[0], msg->data[1], pick_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
-        // {
-        //     RCLCPP_ERROR(this->get_logger(), "Failed to move to pick height. Check collision objects and pick_height_!");
-        //     return;
-        // }
-        // RCLCPP_INFO(this->get_logger(), "Reached pick height.");
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
+        if (  !move_to(msg->data[0], msg->data[1], pick_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to pick height. Check collision objects and pick_height_!");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "Reached pick height.");
 
 
-        
+
         // --- 4. Close Gripper (Grasp) and Attach Bolt ---
-        //RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
-        //gripper_action("close");
-        /*
+        RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
+        gripper_action("custom", 0.5765);   // For 22 mm opening
         
+        /*
         // After the gripper is closed, attach the bolt to the gripper
         attach_bolt_to_gripper(bolt_id, gripper_palm_link, gripper_finger_links);
         RCLCPP_INFO(this->get_logger(), "Gripper closed and bolt attached.");
