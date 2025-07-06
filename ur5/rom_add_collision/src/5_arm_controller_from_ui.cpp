@@ -369,6 +369,7 @@ void Controller::detach_bolt_from_gripper(const std::string& bolt_id, const std:
 int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
+    
     auto controller_node = std::make_shared<Controller>();
     controller_node->initialize_move_groups();
 

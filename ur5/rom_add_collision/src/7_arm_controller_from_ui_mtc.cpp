@@ -6,348 +6,270 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
 
-// TF2 for quaternion operations
+// Include TF2 for quaternion operations
 #include "tf2/LinearMath/Quaternion.h"
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "tf2/LinearMath/Matrix3x3.h" // Not strictly needed for this, but useful
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" 
 
-// MoveIt 2 Core includes
+
+// MoveIt 2 Core includes (added explicitly for robustness)
+// These define foundational classes like RobotModel and RobotState, which trajectory processing depends on.
 #include "moveit/robot_model/robot_model.h"
 #include "moveit/robot_state/robot_state.h"
-#include "moveit/robot_state/conversions.h"
 
-// MoveIt Task Constructor includes
-#include <moveit/task_constructor/task.h>
-#include <moveit/task_constructor/container.h>
-#include <moveit/task_constructor/stages.h>
-#include <moveit/task_constructor/solvers.h>
-#include <moveit/task_constructor/cost_terms.h>
+// MoveIt 2 Planning Interface includes
+#include "moveit/move_group_interface/move_group_interface.h"
+#include "moveit/planning_scene_interface/planning_scene_interface.h"
+#include "moveit/robot_state/conversions.h" // Already there, but good to keep grouped
+
+// MoveIt 2 Messages includes
+#include "moveit_msgs/msg/display_robot_state.hpp"
+#include "moveit_msgs/msg/display_trajectory.hpp"
+#include "moveit_msgs/msg/attached_collision_object.hpp"
+#include "moveit_msgs/msg/collision_object.hpp"
+#include "moveit_msgs/msg/joint_constraint.hpp"
+
+// MoveIt 2 Trajectory processing includes
+#include <moveit/robot_trajectory/robot_trajectory.h>
+#include <moveit/trajectory_processing/time_parameterization.h>
 
 #define UNUSED(x) (void)(x)
 
-namespace mtc = moveit::task_constructor;
-
-// It's good practice to derive from enable_shared_from_this if you use shared_from_this()
-class Controller : public rclcpp::Node, public std::enable_shared_from_this<Controller>
+class Controller : public rclcpp::Node
 {
 public:
-    Controller() : Node("arm_controller_mtc")
+    Controller() : Node("arm_controller_from_ui")
     {
-        // Declare and get parameters for robot groups and end-effector links
-        this->declare_parameter<std::string>("arm_group_name", "ur5_manipulator");
-        this->declare_parameter<std::string>("hand_group_name", "robotiq_gripper");
-        this->declare_parameter<std::string>("eef_link", "tool0");
-        this->declare_parameter<std::string>("world_frame", "world");
+        subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>("/target_point", 10, std::bind(&Controller::listener_callback, this, std::placeholders::_1));
 
-        arm_group_name_ = this->get_parameter("arm_group_name").as_string();
-        hand_group_name_ = this->get_parameter("hand_group_name").as_string();
-        eef_link_ = this->get_parameter("eef_link").as_string();
-        world_frame_ = this->get_parameter("world_frame").as_string();
+        RCLCPP_INFO(this->get_logger(), "Commander node has been initialized.");
 
-        subscription_ = this->create_subscription<std_msgs::msg::Float64MultiArray>(
-            "/target_point", 10, std::bind(&Controller::listener_callback, this, std::placeholders::_1));
-
-        RCLCPP_INFO(this->get_logger(), "Controller node has been initialized. Waiting for /target_point messages.");
-
-        // Define heights and initial angle
+        
         carrying_height_ = 0.3; // up after picking, and place height
-        height_ = 0.23;         // pre-grasp height
-        pick_height_ = 0.165;   // grasp height
-        init_angle_ = M_PI;     // assuming tool0 points down with M_PI pitch (0 roll, 0 yaw initially relative to base_link)
+
+        
+        height_ = 0.23;         // tool0 link is 23 centimeters from base_link ( 18 cm is collide to bolt )
+        pick_height_ = 0.165;    // 17 cm from base_link to tool0 link, for picking bolt
+        init_angle_ = 1.3201;   // for adjust z-axis of tool0 
+
+        planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
     }
 
+    void initialize_move_groups()
+    {
+        arm_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "ur5_manipulator");
+        hand_move_group_ = std::make_shared<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), "robotiq_gripper");
+
+        arm_move_group_->setPoseReferenceFrame("base_link");
+        arm_move_group_->setEndEffectorLink("tool0");
+
+        RCLCPP_INFO(this->get_logger(), "MoveGroupInterfaces initialized.");
+
+        // --- ADDED: Move to 'HOME' position ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move arm to 'HOME' position...");
+        arm_move_group_->setNamedTarget("home");
+        if (plan_and_execute(arm_move_group_, 3.0)) 
+        {
+            RCLCPP_INFO(this->get_logger(), "Successfully moved arm to 'HOME' position.");
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move arm to 'HOME' position. Check 'HOME' state definition and initial robot state.");
+        }
+        // --- END ADDED ---
+    }
+
+
 private:
+    bool plan_and_execute(std::shared_ptr<moveit::planning_interface::MoveGroupInterface>& move_group, double sleep_time = 0.0)
+    {
+        RCLCPP_INFO(this->get_logger(), "Planning trajectory");
+        moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+
+        //bool success = (move_group->plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        bool success = (move_group->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
+
+        if (success)
+        {
+            RCLCPP_INFO(this->get_logger(), "Executing plan");
+            move_group->execute(my_plan);
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Planning failed");
+        }
+
+        if (sleep_time > 0.0)
+        {
+            rclcpp::sleep_for(std::chrono::milliseconds(static_cast<int>(sleep_time * 1000)));
+        }
+        return success;
+    }
+    
+    bool move_to(double x, double y, double z, double xo, double yo, double zo, double wo)
+    {
+        geometry_msgs::msg::PoseStamped pose_goal;
+        pose_goal.header.frame_id = "base_link";
+        pose_goal.pose.position.x = x;
+        pose_goal.pose.position.y = y;
+        pose_goal.pose.position.z = z;
+        pose_goal.pose.orientation.x = xo;
+        pose_goal.pose.orientation.y = yo;
+        pose_goal.pose.orientation.z = zo;
+        pose_goal.pose.orientation.w = wo;
+
+        arm_move_group_->setPoseTarget(pose_goal);
+        bool success = plan_and_execute(arm_move_group_, 3.0);
+        return success;
+    }
+
+    // Function for a gripper action
+    void gripper_action(const std::string& action)
+    {
+        // No need to get current_state and modify joint_group_positions
+        // when using predefined poses.
+        // moveit::core::RobotState current_state = *(hand_move_group_->getCurrentState());
+        // std::vector<double> joint_group_positions;
+        // current_state.copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
+
+        if (action == "open")
+        {
+            hand_move_group_->setNamedTarget("open");
+        }
+        else if (action == "close")
+        {
+            hand_move_group_->setNamedTarget("close");
+        }
+        else
+        {
+            RCLCPP_INFO(this->get_logger(), "No such action: %s", action.c_str());
+            return;
+        }
+        plan_and_execute(hand_move_group_, 3.0);
+    }
+
+
     void listener_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
     {
         RCLCPP_INFO(this->get_logger(), "Received data: [%f, %f, %f]", msg->data[0], msg->data[1], msg->data[2]);
 
-        // Calculate final orientation for the arm's end-effector
-        // The rotation about Z is added to the initial angle (M_PI for tool0 pointing down)
-        tf2::Quaternion q_end_effector_orientation;
-        q_end_effector_orientation.setRPY(0, init_angle_, msg->data[2]); // Roll, Pitch, Yaw
-        geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(q_end_effector_orientation);
+        double final_yaw_angle = init_angle_ + msg->data[2];
+        double yaw_for_collision = msg->data[2] + 0.0; // Adjust this value if needed for collision avoidance
+        tf2::Quaternion q_yaw_from_bolt;
+        q_yaw_from_bolt.setRPY(0, M_PI, final_yaw_angle);
+        geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(q_yaw_from_bolt);
 
         // Define bolt properties (adjust these based on your actual bolt and setup)
         const std::string bolt_id = "target_bolt";
-        const double bolt_radius = 0.02;
-        const double bolt_height = 0.065;
+        const double bolt_radius = 0.02; 
+        const double bolt_height = 0.065; 
+        const std::string world_frame = "world"; // Or your robot's base frame, e.g., "base_link"
 
-        // Assuming table is at Z=0. If not, adjust bolt_z_on_table and bolt_center_z.
-        const double bolt_center_z = 0.0325; // Assuming table at Z=0, bolt_height/2
+        // Adjust bolt_z to place the base of the cylinder on the table if table is at Z=0
+        // or center the cylinder if z is its center.
+        const double bolt_z_on_table = 1.050 - 0.040;  // bolt's height from sdf - offset
+        const double bolt_center_z = bolt_z_on_table + bolt_height / 2.0;
 
-        // Define gripper finger links for allowing collisions
+        // Define your gripper's link name and touch links
+        const std::string gripper_palm_link = "robotiq_85_base_link"; 
         const std::vector<std::string> gripper_finger_links = {
             "robotiq_85_left_knuckle_link",
             "robotiq_85_left_finger_link",
             "robotiq_85_right_knuckle_link",
-            "robotiq_85_right_finger_link"};
+            "robotiq_85_right_finger_link"
+        };
 
-        // Create the MTC task
-        mtc::Task task;
-        task.stages()->setName("Pick and Place Bolt");
-        task.loadRobotModel(shared_from_this()); // Keep this as it's the correct way for the Node object
-
-        // Set properties for the task (e.g., planning groups, end-effector)
-        task.setProperty("group", arm_group_name_);
-        task.setProperty("eef", hand_group_name_);
-        task.setProperty("ik_frame", eef_link_);
-
-        // Solvers for different stages
-        auto pipeline_planner = std::make_shared<mtc::solvers::PipelinePlanner>(this->get_node_base_interface(), "ompl");
-        auto cartesian_planner = std::make_shared<mtc::solvers::CartesianPath>();
-        auto joint_interpolation_planner = std::make_shared<mtc::solvers::JointInterpolationPlanner>();
+        // --- 0. Add the bolt as a collision object before any movement towards it ---
+        add_bolt_to_planning_scene(bolt_id, msg->data[0], msg->data[1], bolt_center_z, bolt_radius, bolt_height, world_frame, 0, M_PI, yaw_for_collision);
 
 
-        // --- Stage 1: Current State ---
-        // This stage provides the initial robot state and current planning scene.
-        mtc::Stage* current_state_ptr = nullptr;
+        // --- 1. Move to initial height (pre-grasp) ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to initial height...");
+        if (  !move_to(msg->data[0], msg->data[1], height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
         {
-            auto stage = std::make_unique<mtc::stages::CurrentState>("current_state");
-            current_state_ptr = stage.get();
-            task.add(std::move(stage));
-        }
-
-        // --- Stage 2: Open Gripper (Pre-Pick) ---
-        // Moves the gripper to the "open" pose.
-        {
-            auto stage = std::make_unique<mtc::stages::MoveTo>("open_gripper", joint_interpolation_planner);
-            stage->setGroup(hand_group_name_);
-            stage->setGoal("open");
-            task.add(std::move(stage));
-        }
-
-        // --- Stage 3: Move to Pre-Grasp Pose ---
-        // This is a free motion to a pose above the object.
-        {
-            auto stage = std::make_unique<mtc::stages::MoveTo>("move_to_pre_grasp", pipeline_planner);
-            stage->setGroup(arm_group_name_);
-            stage->setGoal(createPoseStamped(msg->data[0], msg->data[1], height_, final_ros_orientation));
-            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"}); // FIX: Revert to mtc::Stage::PREDECESSOR
-            task.add(std::move(stage));
-        }
-
-        // --- Stage 4: Add Collision Object (Bolt) ---
-        // Adds the bolt to the planning scene. This is a scene modification.
-        {
-            auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("add_bolt");
-
-            // Create the collision object
-            moveit_msgs::msg::CollisionObject bolt_object;
-            bolt_object.header.frame_id = world_frame_;
-            bolt_object.id = bolt_id;
-
-            shape_msgs::msg::SolidPrimitive cylinder;
-            cylinder.type = shape_msgs::msg::SolidPrimitive::CYLINDER;
-            cylinder.dimensions.resize(2);
-            cylinder.dimensions[shape_msgs::msg::SolidPrimitive::CYLINDER_HEIGHT] = bolt_height;
-            cylinder.dimensions[shape_msgs::msg::SolidPrimitive::CYLINDER_RADIUS] = bolt_radius;
-
-            geometry_msgs::msg::Pose bolt_pose;
-            bolt_pose.position.x = msg->data[0];
-            bolt_pose.position.y = msg->data[1];
-            bolt_pose.position.z = bolt_center_z; // Object's center Z, assuming base at Z=0
-            
-            // For the bolt's orientation in the world, use a quaternion representing its upright pose with the given yaw
-            tf2::Quaternion bolt_q;
-            bolt_q.setRPY(0, 0, msg->data[2]); // Assuming bolt stands upright (0 roll, 0 pitch)
-            bolt_pose.orientation = tf2::toMsg(bolt_q);
-
-            bolt_object.primitives.push_back(cylinder);
-            bolt_object.primitive_poses.push_back(bolt_pose);
-            bolt_object.operation = moveit_msgs::msg::CollisionObject::ADD;
-            stage->addObject(bolt_object);
-            task.add(std::move(stage));
-        }
-
-        // --- Pick Sequence (Serial Container) ---
-        // This container holds all stages related to the picking action.
-        mtc::Stage* attach_object_stage = nullptr; // Pointer to be forwarded for place
-        {
-            auto pick = std::make_unique<mtc::SerialContainer>("pick_bolt");
-            task.properties().exposeTo(pick->properties(), {"group", "eef", "ik_frame"});
-
-            // --- Approach (Cartesian Path) ---
-            // Move straight down to the pick height.
-            {
-                auto stage = std::make_unique<mtc::stages::MoveRelative>("approach", cartesian_planner);
-                stage->setGroup(arm_group_name_);
-                stage->setIKFrame(eef_link_);
-                stage->setDirection(createVector3d(0.0, 0.0, pick_height_ - height_, eef_link_)); // FIX: Pass eef_link_ as frame_id
-                pick->add(std::move(stage));
-            }
-
-            // --- Allow Contact (Gripper and Object) ---
-            // Temporarily allows collision between gripper and object during grasp.
-            {
-                auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("allow_contact_gripper_object");
-                stage->allowCollisions(bolt_id, gripper_finger_links, true);
-                pick->add(std::move(stage));
-            }
-
-            // --- Close Gripper (Grasp) ---
-            // Moves the gripper to the "close" pose.
-            {
-                auto stage = std::make_unique<mtc::stages::MoveTo>("close_gripper", joint_interpolation_planner);
-                stage->setGroup(hand_group_name_);
-                stage->setGoal("close");
-                pick->add(std::move(stage));
-            }
-
-            // --- Attach Object to Gripper ---
-            // Modifies the planning scene to attach the bolt to the end-effector.
-            {
-                auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("attach_object");
-                stage->attachObject(bolt_id, eef_link_, gripper_finger_links);
-                attach_object_stage = stage.get(); // Save pointer for later use in place
-                pick->add(std::move(stage));
-            }
-
-            // --- Lift (Cartesian Path) ---
-            // Move straight up after grasping.
-            {
-                auto stage = std::make_unique<mtc::stages::MoveRelative>("lift", cartesian_planner);
-                stage->setGroup(arm_group_name_);
-                stage->setIKFrame(eef_link_);
-                stage->setDirection(createVector3d(0.0, 0.0, carrying_height_ - pick_height_, eef_link_)); // FIX: Pass eef_link_ as frame_id
-                pick->add(std::move(stage));
-            }
-            task.add(std::move(pick));
-        }
-
-        // --- Stage 5: Move to Place Location ---
-        // Free motion to a safe position above the drop-off location.
-        {
-            auto stage = std::make_unique<mtc::stages::MoveTo>("move_to_place_location", pipeline_planner);
-            stage->setGroup(arm_group_name_);
-            // Example place location: 0.3m in X, -0.3m in Y, at carrying height
-            stage->setGoal(createPoseStamped(0.3, -0.3, carrying_height_, final_ros_orientation));
-            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"}); // FIX: Revert to mtc::Stage::PREDECESSOR
-            task.add(std::move(stage));
-        }
-
-        // --- Place Sequence (Serial Container) ---
-        // This container holds all stages related to the placing action.
-        {
-            auto place = std::make_unique<mtc::SerialContainer>("place_bolt");
-            task.properties().exposeTo(place->properties(), {"group", "eef", "ik_frame"});
-
-            // --- Lower (Cartesian Path) ---
-            // Move straight down to the actual drop-off height.
-            {
-                auto stage = std::make_unique<mtc::stages::MoveRelative>("lower", cartesian_planner);
-                stage->setGroup(arm_group_name_);
-                stage->setIKFrame(eef_link_);
-                // Assuming drop height is pick_height_ for symmetry or adjust as needed
-                stage->setDirection(createVector3d(0.0, 0.0, pick_height_ - carrying_height_, eef_link_)); // FIX: Pass eef_link_ as frame_id
-                place->add(std::move(stage));
-            }
-
-            // --- Open Gripper (Release) ---
-            {
-                auto stage = std::make_unique<mtc::stages::MoveTo>("open_gripper_release", joint_interpolation_planner);
-                stage->setGroup(hand_group_name_);
-                stage->setGoal("open");
-                place->add(std::move(stage));
-            }
-
-            // --- Detach Object from Gripper ---
-            {
-                auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("detach_object");
-                stage->detachObject(bolt_id, eef_link_);
-                place->add(std::move(stage));
-            }
-
-            // --- Forbid Contact (Gripper and Object) ---
-            // Restores collision checking between gripper and object.
-            {
-                auto stage = std::make_unique<mtc::stages::ModifyPlanningScene>("forbid_contact_gripper_object");
-                stage->allowCollisions(bolt_id, gripper_finger_links, false);
-                place->add(std::move(stage));
-            }
-
-            // --- Retreat (Cartesian Path) ---
-            // Move straight up after releasing.
-            {
-                auto stage = std::make_unique<mtc::stages::MoveRelative>("retreat", cartesian_planner);
-                stage->setGroup(arm_group_name_);
-                stage->setIKFrame(eef_link_);
-                stage->setDirection(createVector3d(0.0, 0.0, 0.05, eef_link_)); // FIX: Pass eef_link_ as frame_id
-                place->add(std::move(stage));
-            }
-            task.add(std::move(place));
-        }
-
-        // --- Stage 6: Move to Home Position ---
-        // Returns the arm to a safe home position.
-        {
-            auto stage = std::make_unique<mtc::stages::MoveTo>("move_to_home", pipeline_planner);
-            stage->setGroup(arm_group_name_);
-            stage->setGoal("home");
-            stage->properties().configureInitFrom(mtc::Stage::PREDECESSOR, {"group"}); // FIX: Revert to mtc::Stage::PREDECESSOR
-            task.add(std::move(stage));
-        }
-
-        // --- Planning and Execution ---
-        try
-        {
-            task.init();
-        }
-        catch (mtc::InitStageException& e)
-        {
-            RCLCPP_ERROR_STREAM(this->get_logger(), e.what()); // Use e.what() to get string description
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to initial height (pre-grasp). Aborting pick operation.");
             return;
         }
+        RCLCPP_INFO(this->get_logger(), "Reached initial height.");
+        
 
-        RCLCPP_INFO(this->get_logger(), "Starting task planning...");
-        if (task.plan())
+
+        // --- 2. Open Gripper ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to open gripper...");
+        gripper_action("open");
+        RCLCPP_INFO(this->get_logger(), "Gripper opened.");
+
+
+
+        // // --- 3. Move down to pick height ---
+        // RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
+        // if (  !move_to(msg->data[0], msg->data[1], pick_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "Failed to move to pick height. Check collision objects and pick_height_!");
+        //     return;
+        // }
+        // RCLCPP_INFO(this->get_logger(), "Reached pick height.");
+
+
+        
+        // // --- 4. Close Gripper (Grasp) and Attach Bolt ---
+        // RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
+        // gripper_action("close");
+        /*
+        
+        // After the gripper is closed, attach the bolt to the gripper
+        attach_bolt_to_gripper(bolt_id, gripper_palm_link, gripper_finger_links);
+        RCLCPP_INFO(this->get_logger(), "Gripper closed and bolt attached.");
+
+
+        
+        // --- 5. Move up to carrying height ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to carrying height...");
+        if (  !move_to(msg->data[0], msg->data[1], carrying_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
         {
-            RCLCPP_INFO(this->get_logger(), "Task planning succeeded. Executing task...");
-            task.publishAllSolutions(task.solutions()); // Publish all found solutions to RViz for debugging
-            auto result = task.execute(*task.solutions().front()); // Execute the first found solution
-            if (result.val == moveit_msgs::msg::MoveItErrorCodes::SUCCESS)
-            {
-                RCLCPP_INFO(this->get_logger(), "Task execution succeeded!");
-            }
-            else
-            {
-                RCLCPP_ERROR(this->get_logger(), "Task execution failed! Error code: %d", result.val);
-            }
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to carrying height with attached bolt.");
+            return;
         }
-        else
+        RCLCPP_INFO(this->get_logger(), "Reached carrying height.");
+
+
+
+        // --- 6. Move to a safe 'place' position (e.g., above drop-off) ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to drop-off pre-position...");
+        if (!move_to(0.3, -0.3, carrying_height_, final_ros_orientation.x, final_ros_orientation.y,final_ros_orientation.z, final_ros_orientation.w))
         {
-            RCLCPP_ERROR(this->get_logger(), "Task planning failed!");
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to drop-off pre-position.");
+            return;
         }
-    }
+        RCLCPP_INFO(this->get_logger(), "Reached drop-off pre-position.");
 
-    // Helper function to create a PoseStamped message
-    geometry_msgs::msg::PoseStamped createPoseStamped(double x, double y, double z, const geometry_msgs::msg::Quaternion& orientation)
-    {
-        geometry_msgs::msg::PoseStamped pose;
-        pose.header.frame_id = world_frame_;
-        pose.pose.position.x = x;
-        pose.pose.position.y = y;
-        pose.pose.position.z = z;
-        pose.pose.orientation = orientation;
-        return pose;
-    }
 
-    // Modified Helper function to create a Vector3d message (now Vector3Stamped)
-    geometry_msgs::msg::Vector3Stamped createVector3d(double x, double y, double z, const std::string& frame_id)
-    {
-        geometry_msgs::msg::Vector3Stamped vec_stamped;
-        vec_stamped.header.frame_id = frame_id;
-        vec_stamped.vector.x = x;
-        vec_stamped.vector.y = y;
-        vec_stamped.vector.z = z;
-        return vec_stamped;
+
+        // --- 7. Open Gripper to release and Detach Bolt ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to open gripper for release and detach bolt...");
+        gripper_action("open");
+        // After opening the gripper, detach the bolt. It will be re-added to the world scene.
+        detach_bolt_from_gripper(bolt_id, gripper_palm_link);
+        RCLCPP_INFO(this->get_logger(), "Gripper opened and bolt detached.");
+
+        // (Optional) Move away from the released object if necessary
+        // Example: move up slightly after release
+        // if (!move_to(0.3, -0.3, carrying_height_ + 0.05, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)) {
+        //     RCLCPP_ERROR(this->get_logger(), "Failed to move away after release.");
+        //     return;
+        // }
+        */
     }
 
     rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr subscription_;
+    std::shared_ptr<moveit::planning_interface::MoveGroupInterface> arm_move_group_;
+    std::shared_ptr<moveit::planning_interface::MoveGroupInterface> hand_move_group_;
 
-    // MoveIt Task Constructor related members
-    std::string arm_group_name_;
-    std::string hand_group_name_;
-    std::string eef_link_;
-    std::string world_frame_;
+    std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;
+
+    void add_bolt_to_planning_scene(const std::string& bolt_id, double x, double y, double z, double radius, double height, const std::string& frame_id, double roll, double pitch, double yaw);
+    void attach_bolt_to_gripper(const std::string& bolt_id, const std::string& gripper_link_name, const std::vector<std::string>& touch_links);
+    void detach_bolt_from_gripper(const std::string& bolt_id, const std::string& gripper_link_name);
 
     double height_;
     double pick_height_;
@@ -355,29 +277,118 @@ private:
     double init_angle_;
 };
 
+void Controller::add_bolt_to_planning_scene(const std::string& bolt_id, double x, double y, double z, double radius, double height, const std::string& frame_id, double roll, double pitch, double yaw)
+{
+    if (!planning_scene_interface_) {
+        RCLCPP_ERROR(this->get_logger(), "PlanningSceneInterface not initialized. Cannot add bolt.");
+        return;
+    }
+
+    moveit_msgs::msg::CollisionObject bolt_object;
+    bolt_object.header.frame_id = frame_id;
+    bolt_object.id = bolt_id;
+    
+    shape_msgs::msg::SolidPrimitive cylinder;
+    cylinder.type = shape_msgs::msg::SolidPrimitive::CYLINDER;
+    cylinder.dimensions.resize(2);
+    cylinder.dimensions[shape_msgs::msg::SolidPrimitive::CYLINDER_HEIGHT] = height;
+    cylinder.dimensions[shape_msgs::msg::SolidPrimitive::CYLINDER_RADIUS] = radius;
+    
+    geometry_msgs::msg::Pose bolt_pose;
+    bolt_pose.position.x = x;
+    bolt_pose.position.y = y;
+    bolt_pose.position.z = z;
+
+    tf2::Quaternion tmp_from_bolt;
+        tmp_from_bolt.setRPY(yaw, 1.5, 0);
+        UNUSED(roll);
+        UNUSED(pitch);
+        geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(tmp_from_bolt);
+
+    bolt_pose.orientation = final_ros_orientation;
+    
+    bolt_object.primitives.push_back(cylinder);
+    bolt_object.primitive_poses.push_back(bolt_pose);
+    
+    bolt_object.operation = moveit_msgs::msg::CollisionObject::ADD;
+
+    std::vector<moveit_msgs::msg::CollisionObject> collision_objects;
+    collision_objects.push_back(bolt_object);
+
+    planning_scene_interface_->addCollisionObjects(collision_objects);
+    RCLCPP_INFO(this->get_logger(), "Added bolt '%s' to the planning scene at [%.2f, %.2f, %.2f].", bolt_id.c_str(), x, y, z);
+}
+
+void Controller::attach_bolt_to_gripper(const std::string& bolt_id, const std::string& gripper_link_name, const std::vector<std::string>& touch_links)
+{
+    if (!planning_scene_interface_) {
+        RCLCPP_ERROR(this->get_logger(), "PlanningSceneInterface not initialized. Cannot attach bolt.");
+        return;
+    }
+
+    // First, remove the object from the world collision scene
+    // It must not be in the world scene when being attached
+    moveit_msgs::msg::CollisionObject remove_from_world;
+    remove_from_world.id = bolt_id;
+    remove_from_world.operation = moveit_msgs::msg::CollisionObject::REMOVE;
+    planning_scene_interface_->applyCollisionObject(remove_from_world);
+    RCLCPP_INFO(this->get_logger(), "Removed bolt '%s' from world collision scene before attaching.", bolt_id.c_str());
+
+
+    // Now, create the AttachedCollisionObject message
+    moveit_msgs::msg::AttachedCollisionObject attached_bolt;
+    attached_bolt.link_name = gripper_link_name;
+    attached_bolt.object.id = bolt_id;
+    attached_bolt.object.operation = moveit_msgs::msg::CollisionObject::ADD; // Add as an attached object
+
+    // Specify which links of the robot are allowed to touch the attached object
+    // (e.g., your gripper fingers)
+    attached_bolt.touch_links = touch_links;
+
+    planning_scene_interface_->applyAttachedCollisionObject(attached_bolt);
+    RCLCPP_INFO(this->get_logger(), "Attached bolt '%s' to gripper link '%s'.", bolt_id.c_str(), gripper_link_name.c_str());
+}
+
+
+void Controller::detach_bolt_from_gripper(const std::string& bolt_id, const std::string& gripper_link_name)
+{
+    if (!planning_scene_interface_) {
+        RCLCPP_ERROR(this->get_logger(), "PlanningSceneInterface not initialized. Cannot detach bolt.");
+        return;
+    }
+
+    moveit_msgs::msg::AttachedCollisionObject detached_bolt;
+    detached_bolt.link_name = gripper_link_name;
+    detached_bolt.object.id = bolt_id;
+    detached_bolt.object.operation = moveit_msgs::msg::CollisionObject::REMOVE; // Remove as an attached object
+
+    planning_scene_interface_->applyAttachedCollisionObject(detached_bolt);
+    RCLCPP_INFO(this->get_logger(), "Detached bolt '%s' from gripper link '%s'. It is now back in the world scene.", bolt_id.c_str(), gripper_link_name.c_str());
+}
+
 int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::NodeOptions options;
-    options.automatically_declare_parameters_from_overrides(true); // Allow declaring parameters from CLI/launch file
-    auto controller_node = std::make_shared<Controller>(options);
+    
+    auto controller_node = std::make_shared<Controller>();
+    controller_node->initialize_move_groups();
 
+    RCLCPP_INFO(controller_node->get_logger(), "Controller node is ready to receive commands.");
+    
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(controller_node);
 
     RCLCPP_INFO(controller_node->get_logger(), "Executor is set up with the controller node.");
-
-    // Spin the executor in a separate thread to allow the main thread to continue
+    
     std::thread([&executor]() { executor.spin(); }).detach();
 
     RCLCPP_INFO(controller_node->get_logger(), "Controller node is spinning.");
 
-    // Keep the main thread alive until shutdown
-    while (rclcpp::ok())
+    while (rclcpp::ok()) 
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
     }
-
+    
     rclcpp::shutdown();
 
     return 0;

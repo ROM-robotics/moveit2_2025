@@ -73,8 +73,8 @@ ament_target_dependencies(arm_controller_for_ui rclcpp moveit_ros_planning_inter
 add_executable(test_controller src/6_arm_controller_from_ui_test_publisher.cpp)
 ament_target_dependencies(test_controller rclcpp moveit_ros_planning_interface)
 
-# add_executable(arm_controller_mtc_for_ui src/7_arm_controller_from_ui_mtc.cpp)
-# ament_target_dependencies(arm_controller_mtc_for_ui rclcpp moveit_ros_planning_interface tf2 tf2_geometry_msgs moveit_core moveit_ros_planning moveit_task_constructor_core)
+add_executable(arm_controller_mtc_for_ui src/7_arm_controller_from_ui_mtc.cpp)
+ament_target_dependencies(arm_controller_mtc_for_ui rclcpp moveit_ros_planning_interface tf2 tf2_geometry_msgs moveit_core moveit_ros_planning moveit_task_constructor_core)
 
 
 # add_executable(pose_goal_publisher src/go_pose_publisher.cpp)
@@ -93,7 +93,7 @@ install(TARGETS
   service_caller
   arm_controller_for_ui
   test_controller
-  #arm_controller_mtc_for_ui
+  arm_controller_mtc_for_ui
   #pose_goal_publisher
   DESTINATION lib/${PROJECT_NAME}
 )

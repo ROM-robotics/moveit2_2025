@@ -79,7 +79,7 @@ private:
       return;
     }
 
-    if (!task_.plan(5))
+    if (!task_.plan(20))
     {
       RCLCPP_ERROR_STREAM(LOGGER, "Task planning failed");
       return;
@@ -143,17 +143,24 @@ private:
 
     geometry_msgs::msg::PoseStamped target_pose;
     target_pose.header.frame_id = "base_link"; // The frame relative to which the pose is defined
-    target_pose.pose.position.x = 0.5;         // Example X position in meters
-    target_pose.pose.position.y = 0.3;         // Example Y position in meters
-    target_pose.pose.position.z = 0.4;         // Example Z position in meters
+    target_pose.pose.position.x = 0.147;         
+    target_pose.pose.position.y = -0.574;        
+    target_pose.pose.position.z = 0.230;  
+    
+    // For a downward orientation:
+    double roll = 0.0;
+    double pitch = 0.0;
+    double yaw = 0.0;
+    tf2::Quaternion q;
+    q.setRPY(roll, pitch, yaw);
 
-    // Example: Orientation for the tool0 frame
-    // Convert RPY (Roll, Pitch, Yaw) to Quaternion
-    // Roll (rotation around X), Pitch (rotation around Y), Yaw (rotation around Z)
-    // All angles in radians
-    Eigen::Quaterniond q = Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitX()) * // 90 degrees around X (Roll)
-                           Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) * // 0 degrees around Y (Pitch)
-                           Eigen::AngleAxisd(M_PI_4, Eigen::Vector3d::UnitZ());   // 45 degrees around Z (Yaw)
+    // // Example: Orientation for the tool0 frame
+    // // Convert RPY (Roll, Pitch, Yaw) to Quaternion
+    // // Roll (rotation around X), Pitch (rotation around Y), Yaw (rotation around Z)
+    // // All angles in radians
+    // Eigen::Quaterniond q = Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitX()) * // 90 degrees around X (Roll)
+    //                        Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY()) * // 0 degrees around Y (Pitch)
+    //                        Eigen::AngleAxisd(M_PI_4, Eigen::Vector3d::UnitZ());   // 45 degrees around Z (Yaw)
 
     target_pose.pose.orientation.x = q.x();
     target_pose.pose.orientation.y = q.y();
