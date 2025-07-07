@@ -44,14 +44,6 @@ public:
 
         RCLCPP_INFO(this->get_logger(), "Commander node has been initialized.");
 
-        
-        carrying_height_ = 0.3; // up after picking, and place height
-
-        
-        height_ = 0.23;         // tool0 link is 23 centimeters from base_link ( 18 cm is collide to bolt )
-        pick_height_ = 0.165;    // 17 cm from base_link to tool0 link, for picking bolt
-        init_angle_ = 1.3201;   // for adjust z-axis of tool0 
-
         planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
     }
 
@@ -106,32 +98,39 @@ private:
         return success;
     }
     
-    bool move_to(double x, double y, double z, double xo, double yo, double zo, double wo)
+    bool move_to(const geometry_msgs::msg::PoseStamped& pose_goal)
     {
-        geometry_msgs::msg::PoseStamped pose_goal;
-        pose_goal.header.frame_id = "base_link";
-        pose_goal.pose.position.x = x;
-        pose_goal.pose.position.y = y;
-        pose_goal.pose.position.z = z;
-        pose_goal.pose.orientation.x = xo;
-        pose_goal.pose.orientation.y = yo;
-        pose_goal.pose.orientation.z = zo;
-        pose_goal.pose.orientation.w = wo;
-
         arm_move_group_->setPoseTarget(pose_goal);
         bool success = plan_and_execute(arm_move_group_, 3.0);
+        return success;
+    }
+
+    bool move_to_vector(const geometry_msgs::msg::PoseStamped& pose_goal)
+    {
+        std::vector<geometry_msgs::msg::Pose> approach_waypoints1;
+        pose_goal.position.z -= 0.02;
+        approach_waypoints1.push_back(pose_goal);
+
+        pose_goal.position.z -= 0.02;
+        approach_waypoints1.push_back(pose_goal);
+
+        moveit_msgs::msg::RobotTrajectory trajectory_approach1;
+        const double jump_threshold = 0.0;
+        const double eef_step = 0.01;
+
+        double fraction = arm_move_group_.computeCartesianPath(approach_waypoints1, eef_step, jump_threshold, trajectory_approach1);
+
+        arm_move_group_.execute(trajectory_approach1);
+
+        rclcpp::sleep_for(std::chrono::seconds(3));
+
+
         return success;
     }
 
     // Function for a gripper action
     void gripper_action(const std::string& action)
     {
-        // No need to get current_state and modify joint_group_positions
-        // when using predefined poses.
-        // moveit::core::RobotState current_state = *(hand_move_group_->getCurrentState());
-        // std::vector<double> joint_group_positions;
-        // current_state.copyJointGroupPositions(hand_move_group_->getName(), joint_group_positions);
-
         if (action == "open")
         {
             hand_move_group_->setNamedTarget("open");
@@ -153,45 +152,45 @@ private:
     {
         RCLCPP_INFO(this->get_logger(), "Received data: [%f, %f, %f]", msg->data[0], msg->data[1], msg->data[2]);
 
-        double final_yaw_angle = init_angle_ + msg->data[2];
-        double yaw_for_collision = msg->data[2] + 0.0; // Adjust this value if needed for collision avoidance
+        double yaw_angle_of_target_bolt = msg->data[2] + 0.0; // Adjust this value if needed for collision avoidance
+        double target_bolt_fit_to_tool0 = init_angle_ + msg->data[2];
+
         tf2::Quaternion q_yaw_from_bolt;
-        q_yaw_from_bolt.setRPY(0, M_PI, final_yaw_angle);
-        geometry_msgs::msg::Quaternion final_ros_orientation = tf2::toMsg(q_yaw_from_bolt);
+        q_yaw_from_bolt.setRPY(0, M_PI, target_bolt_fit_to_tool0);
 
         // Define bolt properties (adjust these based on your actual bolt and setup)
+        const std::string world_frame = "base_link"; 
         const std::string bolt_id = "target_bolt";
-        const double bolt_radius = 0.02; 
-        const double bolt_height = 0.065; 
-        const std::string world_frame = "world"; // Or your robot's base frame, e.g., "base_link"
+        const double bolt_radius = 0.02; // 4cm diameter of clylinder
+        const double bolt_height = 0.07; // 7cm length 
+        const double bolt_center_z = bolt_radius;
 
-        // Adjust bolt_z to place the base of the cylinder on the table if table is at Z=0
-        // or center the cylinder if z is its center.
-        const double bolt_z_on_table = 1.050 - 0.040;  // bolt's height from sdf - offset
-        const double bolt_center_z = bolt_z_on_table + bolt_height / 2.0;
+        geometry_msgs::msg::PoseStamped pose_goal;
+        pose_goal.header.frame_id = world_frame;
+        pose_goal.pose.position.x = msg->data[0];
+        pose_goal.pose.position.y = msg->data[1];
+        pose_goal.pose.position.z = height_ + robotiq_2f_85_gripper_height; // ( 0.0700 + 0.1628 = 23 cm height tool0 from base_link )
+        pose_goal.pose.orientation.x = q_yaw_from_bolt.x();
+        pose_goal.pose.orientation.y = q_yaw_from_bolt.y();
+        pose_goal.pose.orientation.z = q_yaw_from_bolt.z();
+        pose_goal.pose.orientation.w = q_yaw_from_bolt.w();
 
         // Define your gripper's link name and touch links
         const std::string gripper_palm_link = "robotiq_85_base_link"; 
-        const std::vector<std::string> gripper_finger_links = {
-            "robotiq_85_left_knuckle_link",
-            "robotiq_85_left_finger_link",
-            "robotiq_85_right_knuckle_link",
-            "robotiq_85_right_finger_link"
-        };
+        const std::vector<std::string> gripper_finger_links = {"robotiq_85_left_knuckle_link", "robotiq_85_left_finger_link", "robotiq_85_right_knuckle_link", "robotiq_85_right_finger_link" };
 
         // --- 0. Add the bolt as a collision object before any movement towards it ---
-        add_bolt_to_planning_scene(bolt_id, msg->data[0], msg->data[1], bolt_center_z, bolt_radius, bolt_height, world_frame, 0, M_PI, yaw_for_collision);
+        add_bolt_to_planning_scene(bolt_id, pose_goal.pose.position.x, pose_goal.pose.position.y, bolt_center_z, bolt_radius, bolt_height, world_frame, 0, M_PI, yaw_angle_of_target_bolt);
 
 
         // --- 1. Move to initial height (pre-grasp) ---
         RCLCPP_INFO(this->get_logger(), "Attempting to move to initial height...");
-        if (  !move_to(msg->data[0], msg->data[1], height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
+        if (  !move_to(pose_goal)  )
         {
             RCLCPP_ERROR(this->get_logger(), "Failed to move to initial height (pre-grasp). Aborting pick operation.");
             return;
         }
         RCLCPP_INFO(this->get_logger(), "Reached initial height.");
-        
 
 
         // --- 2. Open Gripper ---
@@ -202,13 +201,14 @@ private:
 
 
         // // --- 3. Move down to pick height ---
-        // RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
-        // if (  !move_to(msg->data[0], msg->data[1], pick_height_, final_ros_orientation.x, final_ros_orientation.y, final_ros_orientation.z, final_ros_orientation.w)  )
-        // {
-        //     RCLCPP_ERROR(this->get_logger(), "Failed to move to pick height. Check collision objects and pick_height_!");
-        //     return;
-        // }
-        // RCLCPP_INFO(this->get_logger(), "Reached pick height.");
+        pose_goal.pose.position.z = pose_goal.pose.position.z - 0.05;  // 
+        RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
+        if (  !move_to(pose_goal)  )
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to move to pick height. Check collision objects and pick_height_!");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "Reached pick height.");
 
 
         
@@ -271,10 +271,13 @@ private:
     void attach_bolt_to_gripper(const std::string& bolt_id, const std::string& gripper_link_name, const std::vector<std::string>& touch_links);
     void detach_bolt_from_gripper(const std::string& bolt_id, const std::string& gripper_link_name);
 
-    double height_;
-    double pick_height_;
-    double carrying_height_;
-    double init_angle_;
+    double table_height_ = 1.02;
+    double robotiq_2f_85_gripper_height = 0.1628;       // ROBOTIQ GRIPPER DIMENSION 162.8 x 148.6 x 61 mm, 0.1628 x 0.1486 x 0.061 m
+    double height_ = 0.0700;                            // gripper finger top  is 7 centimeters from base_link 
+
+    double pick_height_ = 0.165;    // 17 cm ( tool0 link from base_link ), for picking bolt
+    double carrying_height_ = 0.3; // up after picking, and place height
+    double init_angle_ = 1.3201;   // for adjust z-axis of tool0 
 };
 
 void Controller::add_bolt_to_planning_scene(const std::string& bolt_id, double x, double y, double z, double radius, double height, const std::string& frame_id, double roll, double pitch, double yaw)

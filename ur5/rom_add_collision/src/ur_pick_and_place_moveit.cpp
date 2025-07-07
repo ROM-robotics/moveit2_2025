@@ -23,7 +23,7 @@ int main(int argc, char * argv[])
   executor.add_node(move_group_node);
   std::thread([&executor]() { executor.spin(); }).detach();
 
-  static const std::string PLANNING_GROUP_ARM = "ur_manipulator";
+  static const std::string PLANNING_GROUP_ARM = "ur5_manipulator";
 
   moveit::planning_interface::MoveGroupInterface move_group_arm(
       move_group_node, PLANNING_GROUP_ARM);
