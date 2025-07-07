@@ -35,6 +35,10 @@
 
 #define UNUSED(x) (void)(x)
 
+static const std::string GRIPPER_JOINT_NAME = "robotiq_85_left_knuckle_joint";
+static const double OPEN_GRIPPER_VALUE = 0.0;  
+static const double CLOSE_GRIPPER_VALUE = 0.55; // open = 0.00008, close = 0.791
+
 class Controller : public rclcpp::Node
 {
 public:
@@ -105,27 +109,27 @@ private:
         return success;
     }
 
-    bool move_to_vector(const geometry_msgs::msg::PoseStamped& pose_goal)
+    bool move_to_vector(geometry_msgs::msg::PoseStamped pose_goal)
     {
         std::vector<geometry_msgs::msg::Pose> approach_waypoints1;
-        pose_goal.position.z -= 0.02;
-        approach_waypoints1.push_back(pose_goal);
+        pose_goal.pose.position.z -= 0.035;
+        approach_waypoints1.push_back(pose_goal.pose);
 
-        pose_goal.position.z -= 0.02;
-        approach_waypoints1.push_back(pose_goal);
+        pose_goal.pose.position.z -= 0.035;
+        approach_waypoints1.push_back(pose_goal.pose);
 
         moveit_msgs::msg::RobotTrajectory trajectory_approach1;
         const double jump_threshold = 0.0;
         const double eef_step = 0.01;
 
-        double fraction = arm_move_group_.computeCartesianPath(approach_waypoints1, eef_step, jump_threshold, trajectory_approach1);
+        double fraction = arm_move_group_->computeCartesianPath(approach_waypoints1, eef_step, jump_threshold, trajectory_approach1);
 
-        arm_move_group_.execute(trajectory_approach1);
+        arm_move_group_->execute(trajectory_approach1);
 
         rclcpp::sleep_for(std::chrono::seconds(3));
 
 
-        return success;
+        return true;
     }
 
     // Function for a gripper action
@@ -145,6 +149,51 @@ private:
             return;
         }
         plan_and_execute(hand_move_group_, 3.0);
+    }
+
+    bool gripper_close()
+    {
+        // // GRIPPER ACQUISITION
+        //     moveit::core::RobotStatePtr current_gripper_state = hand_move_group_->getCurrentState();
+            
+        //     const moveit::core::JointModelGroup* joint_model_group_gripper = current_gripper_state->getJointModelGroup(hand_move_group_->getName()); // Or use a static const PLANNING_GROUP_GRIPPER
+
+        //     if (!joint_model_group_gripper) {
+        //         RCLCPP_ERROR(this->get_logger(), "Failed to get joint model group for gripper.");
+        //         return false;
+        //     }
+            
+        //     std::vector<double> current_gripper_joint_positions;
+        //     current_gripper_state->copyJointGroupPositions(joint_model_group_gripper, current_gripper_joint_positions);
+            
+        //     const std::vector<std::string>& joint_names = joint_model_group_gripper->getVariableNames();
+        //     auto it = std::find(joint_names.begin(), joint_names.end(), GRIPPER_JOINT_NAME);
+
+        //     if (it != joint_names.end()) {
+        //         int index = std::distance(joint_names.begin(), it);
+        //         RCLCPP_INFO(this->get_logger(), "Gripper joint '%s' position BEFORE closing: %f",
+        //                     GRIPPER_JOINT_NAME.c_str(), current_gripper_joint_positions[index]);
+        //     } else {
+        //         RCLCPP_ERROR(this->get_logger(), "Gripper joint '%s' not found in the gripper group.", GRIPPER_JOINT_NAME.c_str());
+        //         // You might still proceed, but it's good to know if the joint isn't found.
+        //     } 
+        // // END GRIPPER ACQUISITION
+
+        std::map<std::string, double> gripper_joint_targets_close;
+        gripper_joint_targets_close[GRIPPER_JOINT_NAME] = CLOSE_GRIPPER_VALUE;
+
+        hand_move_group_->setJointValueTarget(gripper_joint_targets_close);
+        moveit::planning_interface::MoveGroupInterface::Plan gripper_plan_close;
+        bool gripper_close_success = (hand_move_group_->plan(gripper_plan_close) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        
+        if (gripper_close_success) {
+            hand_move_group_->execute(gripper_plan_close);
+            RCLCPP_INFO(this->get_logger(), "Gripper closed, object grasped.");
+        } else {
+            RCLCPP_ERROR(this->get_logger(), "Failed to plan or execute gripper close action.");
+        }
+        rclcpp::sleep_for(std::chrono::seconds(1));
+        return gripper_close_success;
     }
 
 
@@ -201,9 +250,8 @@ private:
 
 
         // // --- 3. Move down to pick height ---
-        pose_goal.pose.position.z = pose_goal.pose.position.z - 0.05;  // 
         RCLCPP_INFO(this->get_logger(), "Attempting to move to pick height...");
-        if (  !move_to(pose_goal)  )
+        if (  !move_to_vector(pose_goal)  )
         {
             RCLCPP_ERROR(this->get_logger(), "Failed to move to pick height. Check collision objects and pick_height_!");
             return;
@@ -212,16 +260,19 @@ private:
 
 
         
-        // // --- 4. Close Gripper (Grasp) and Attach Bolt ---
-        // RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
-        // gripper_action("close");
-        /*
-        
+        // --- 4. Close Gripper (Grasp) and Attach Bolt ---
+        RCLCPP_INFO(this->get_logger(), "Attempting to close gripper and attach bolt...");
+        bool gripper_close_status = gripper_close();
+        if (!gripper_close_status)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to close gripper. Aborting pick operation.");
+            return;
+        }
         // After the gripper is closed, attach the bolt to the gripper
         attach_bolt_to_gripper(bolt_id, gripper_palm_link, gripper_finger_links);
         RCLCPP_INFO(this->get_logger(), "Gripper closed and bolt attached.");
 
-
+        /*
         
         // --- 5. Move up to carrying height ---
         RCLCPP_INFO(this->get_logger(), "Attempting to move to carrying height...");
