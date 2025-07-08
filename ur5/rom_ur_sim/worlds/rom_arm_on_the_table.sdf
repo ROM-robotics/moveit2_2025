@@ -139,17 +139,6 @@
       <pose>0 0 0 0 -0 0</pose>
       <self_collide>false</self_collide>
     </model>
-    
-    <!-- <include>
-      <uri>https://fuel.ignitionrobotics.org/1.0/OpenRobotics/models/Table</uri>
-      <name>table1</name>
-      <pose>0 0 0 0 -0 1.5708</pose>
-    </include>
-    <include>
-      <uri>https://fuel.ignitionrobotics.org/1.0/OpenRobotics/models/Table</uri>
-      <name>table2</name>
-      <pose>0.794 0 0 0 -0 1.5708</pose>
-    </include> -->
 
     <model name="table1">
       <static>true</static>
@@ -207,6 +196,13 @@
       </include>
       <pose>0.11 -0.53 1.05 0 -1.5 -1.0</pose>
     </model> 
+
+    <model name="basket">
+      <include>
+        <uri>file:///home/mr_robot/devel_ws/install/rom_ur_sim/share/rom_ur_sim/worlds/Threshold_Basket_Natural_Finish_Fabric_Liner_Small/</uri>
+      </include>
+      <pose>-0.5 0.4 1.05 0 0 0</pose>
+    </model>
        
     <light name='sun' type='directional'>
       <pose>0 0 10 0 -0 0</pose>
